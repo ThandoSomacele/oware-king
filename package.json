@@ -1,0 +1,16 @@
+{
+  "name": "oware-king",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Oware King: the West African sowing game for phones, tablets and PCs",
+  "scripts": {
+    "build": "node build.mjs",
+    "dev": "node build.mjs && wrangler dev --port 8787",
+    "deploy": "node build.mjs && wrangler deploy",
+    "test": "node build.mjs && node test/engine.test.js && node test/play.js",
+    "test:online": "node test/online.js"
+  },
+  "devDependencies": {
+    "wrangler": "^4.166.0"
+  }
+}

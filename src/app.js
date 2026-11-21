@@ -21,6 +21,8 @@
   const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 
   let mode = null, level = store.get('level', 'easy');
+  let bottom = 0; // the player whose pits are on the bottom row
+  const net = { ws: null, code: null, seat: null, snap: null, applied: 0, game: -1, busy: false, waiting: false, down: false, retry: 0, pending: null };
   let state = null, view = [], locked = false, thinking = false, puzzle = null, gameId = 0, note = '';
 
   // ---------- sound ----------
@@ -130,11 +132,14 @@
 
   // ---------- board ----------
   const boardEl = $('#board'), pitEls = [];
-  function buildBoard() {
-    for (const i of [11, 10, 9, 8, 7, 6, 0, 1, 2, 3, 4, 5]) {
+  // flip = true puts pits 6-11 on the bottom row, for the second online player.
+  function buildBoard(flip = false) {
+    boardEl.replaceChildren();
+    const order = flip ? [5, 4, 3, 2, 1, 0, 6, 7, 8, 9, 10, 11] : [11, 10, 9, 8, 7, 6, 0, 1, 2, 3, 4, 5];
+    for (const [n, i] of order.entries()) {
       const b = document.createElement('button');
       b.type = 'button';
-      b.className = 'pit ' + (i < 6 ? 'south' : 'north');
+      b.className = 'pit ' + (n < 6 ? 'north' : 'south');
       b.innerHTML = '<span class="bowl"><span class="seeds"></span></span><span class="count"></span>';
       b.addEventListener('click', () => onPit(i));
       boardEl.appendChild(b);
@@ -203,21 +208,40 @@
     return anim.finished.catch(() => {});
   }
 
-  const humanTurn = () => (mode === 'ai' ? state.turn === 0 : mode === 'daily' ? !puzzle.done : true);
+  const scoreEl = (p) => $(p === bottom ? '#scoreBottom' : '#scoreTop');
+  function orient(seat) {
+    if (bottom === seat) return;
+    bottom = seat;
+    buildBoard(seat === 1);
+  }
+  const bothIn = () => !!(net.snap && net.snap.players[0] && net.snap.players[1]);
+  const rival = () => (net.snap && net.snap.players[1 - net.seat]) || null;
+  const humanTurn = () =>
+    mode === 'ai' ? state.turn === 0
+      : mode === 'daily' ? !puzzle.done
+        : mode === 'online' ? state.turn === net.seat && bothIn() && !net.waiting && !net.down
+          : true;
 
   function drawAll() {
     for (let i = 0; i < 12; i++) drawPit(i);
-    $('#scoreTop').textContent = state.score[1];
-    $('#scoreBottom').textContent = state.score[0];
+    $('#scoreTop').textContent = state.score[1 - bottom];
+    $('#scoreBottom').textContent = state.score[bottom];
     const live = !state.over && !(mode === 'daily' && puzzle.done);
-    $('#barTop').classList.toggle('turn', live && state.turn === 1);
-    $('#barBottom').classList.toggle('turn', live && state.turn === 0);
+    $('#barTop').classList.toggle('turn', live && state.turn !== bottom);
+    $('#barBottom').classList.toggle('turn', live && state.turn === bottom);
     const can = !locked && live && humanTurn() ? E.legalMoves(state) : [];
     pitEls.forEach((el, i) => el.classList.toggle('can', can.includes(i)));
     let s = note;
     if (!s && live) {
       if (mode === 'ai') s = state.turn === 1 ? (thinking ? 'The computer is thinking' : 'The computer is playing') : locked ? 'Sowing your seeds' : 'Your turn. Tap a pit with a gold ring.';
       else if (mode === 'local') s = state.turn === 0 ? 'Player 1 to play' : 'Player 2 to play';
+      else if (mode === 'online') {
+        const r = rival();
+        if (net.down) s = 'Connection lost. Reconnecting';
+        else if (!r) s = 'Waiting for your friend to join';
+        else if (state.turn === net.seat) s = locked ? 'Sowing your seeds' : 'Your turn. Tap a pit with a gold ring.';
+        else s = r.online ? `${r.name} is playing` : `${r.name} is offline. The game waits for them.`;
+      }
     }
     $('#status').textContent = s;
   }
@@ -235,6 +259,12 @@
       if (state.pits[i] > 0) { note = 'Your opponent has no seeds. Choose a pit that reaches their side.'; drawAll(); }
       return;
     }
+    if (mode === 'online') {
+      net.waiting = true; // the move is shown when the server confirms it
+      netSend({ t: 'move', pit: i });
+      drawAll();
+      return;
+    }
     move(i);
   }
 
@@ -242,20 +272,20 @@
   async function toScore(k, p, shown, n, id) {
     await wait(n * 140);
     if (id !== gameId) return;
-    const scoreEl = p === 0 ? $('#scoreBottom') : $('#scoreTop');
+    const el = scoreEl(p);
     const from = centre(bowlOf(k)), seeds = view[k];
     const flyer = makeHand(seeds, k, from);
     pitEls[k].classList.remove('taken');
     view[k] = 0;
     drawPit(k);
-    await fly(flyer, from, centre(scoreEl), 560, 24);
+    await fly(flyer, from, centre(el), 560, 24);
     flyer.remove();
     if (id !== gameId) return;
     shown[p] += seeds;
-    scoreEl.textContent = shown[p];
-    scoreEl.classList.remove('bump');
-    void scoreEl.offsetWidth;
-    scoreEl.classList.add('bump');
+    el.textContent = shown[p];
+    el.classList.remove('bump');
+    void el.offsetWidth;
+    el.classList.add('bump');
     sfx.rattle(seeds);
   }
 
@@ -350,6 +380,7 @@
   }
 
   function endGame() {
+    if (mode === 'online') return endOnline();
     const [a, b] = state.score, w = state.winner;
     let title;
     if (w === -1) title = 'A draw';
@@ -422,10 +453,15 @@
     $('#scoreTop').classList.remove('bump');
     $('#scoreBottom').classList.remove('bump');
     $('#result').hidden = true;
+    $('#resultMain').disabled = false;
+    $('#invite').hidden = true;
+    $('#reacts').hidden = mode !== 'online' || !rival();
+    net.busy = false;
   }
 
   function startGame(m) {
     mode = m;
+    orient(0);
     resetBoard();
     state = E.start();
     view = state.pits.slice();
@@ -438,6 +474,7 @@
 
   function startDaily() {
     mode = 'daily';
+    orient(0);
     resetBoard();
     puzzle = E.dailyPuzzle(today());
     state = puzzle.state;
@@ -471,10 +508,198 @@
   }
 
   function goHome() {
+    leaveOnline();
     gameId++;
     fx.replaceChildren();
     drawHome();
     show('home');
+  }
+
+  // ---------- online play ----------
+  // The server keeps the list of moves. This page replays that list, one animated move at a time.
+  const EMOJI = ['\u{1F44D}', '\u{1F602}', '\u{1F62E}', '\u{1F622}', '\u{1F525}'];
+  const pid = (() => {
+    let v = store.get('pid', null);
+    if (!v) {
+      v = window.crypto && crypto.randomUUID ? crypto.randomUUID() : `p${Date.now()}${Math.random().toString(36).slice(2)}`;
+      store.set('pid', v);
+    }
+    return v;
+  })();
+  const hashCode = () => { const m = /^#g-([a-z2-9]{6})$/.exec(location.hash); return m ? m[1] : null; };
+  const myName = () => $('#nick').value.trim().slice(0, 16) || 'Player';
+  const netSend = (msg) => { try { net.ws.send(JSON.stringify(msg)); } catch { /* the reconnect loop will recover */ } };
+
+  function connect() {
+    const code = net.code;
+    const ws = new WebSocket(`${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}/api/room/${code}/ws`);
+    net.ws = ws;
+    ws.onopen = () => { net.retry = 0; netSend({ t: 'join', id: pid, name: myName() }); };
+    ws.onmessage = (ev) => {
+      if (net.ws !== ws) return;
+      let msg;
+      try { msg = JSON.parse(ev.data); } catch { return; }
+      if (msg.t === 'state') onSnapshot(msg);
+      else if (msg.t === 'react') showReaction(msg.seat, msg.e);
+      else if (msg.t === 'full') { leaveOnline(); goHome(); onlineError('That game already has two players. Create a new one.'); }
+    };
+    ws.onclose = () => {
+      if (net.ws !== ws || net.code !== code) return;
+      net.down = true;
+      if (state) drawAll();
+      net.pending = setTimeout(connect, Math.min(8000, 1000 * 2 ** net.retry++));
+    };
+  }
+
+  function joinOnline(code) {
+    leaveOnline();
+    store.set('nick', myName());
+    mode = 'online';
+    Object.assign(net, { code, seat: null, snap: null, applied: 0, game: -1, busy: false, waiting: false, down: false, retry: 0 });
+    try { history.replaceState(null, '', `#g-${code}`); } catch { location.hash = `g-${code}`; }
+    orient(0);
+    resetBoard();
+    state = E.start();
+    view = state.pits.slice();
+    $('#prompt').hidden = true;
+    $('#nameTop').textContent = 'Waiting for a friend';
+    $('#nameBottom').textContent = 'You';
+    drawAll();
+    show('game');
+    connect();
+  }
+
+  function leaveOnline() {
+    if (!net.code) return;
+    clearTimeout(net.pending);
+    const ws = net.ws;
+    net.ws = null;
+    net.code = null;
+    net.snap = null;
+    try { ws.close(); } catch { /* already closed */ }
+    try { history.replaceState(null, '', location.pathname); } catch { /* keep the link */ }
+    $('#invite').hidden = true;
+    $('#reacts').hidden = true;
+    mode = null;
+    orient(0);
+  }
+
+  function onSnapshot(s) {
+    net.snap = s;
+    net.seat = s.you;
+    net.down = false;
+    net.waiting = false;
+    if (s.game !== net.game || s.moves.length < net.applied) { // first picture, a rematch, or we are out of step
+      net.game = s.game;
+      orient(s.you);
+      resetBoard();
+      state = E.start();
+      state.turn = s.starter;
+      view = state.pits.slice();
+      net.applied = 0;
+    }
+    const r = rival();
+    $('#nameBottom').textContent = `${s.players[s.you].name} (you)`;
+    $('#nameTop').textContent = r ? r.name : 'Waiting for a friend';
+    $('#invite').hidden = !!r;
+    $('#reacts').hidden = !r;
+    if (!r) $('#inviteLink').value = `${location.origin}${location.pathname}#g-${net.code}`;
+    if (state.over && !$('#result').hidden) endOnline();
+    sync();
+  }
+
+  async function sync() {
+    if (net.busy || !net.snap) return;
+    const moves = net.snap.moves;
+    if (net.applied >= moves.length) { drawAll(); return; }
+    // Far behind (a reload or a long disconnect): catch up without animation, then animate only the last move.
+    while (moves.length - net.applied > 1) state = E.play(state, moves[net.applied++]).state;
+    view = state.pits.slice();
+    net.busy = true;
+    const g = gameId;
+    await move(moves[net.applied++]);
+    if (g !== gameId) return;
+    net.busy = false;
+    sync();
+  }
+
+  function endOnline() {
+    const s = net.snap, r = rival(), w = state.winner, me = net.seat;
+    const title = w === -1 ? 'A draw' : w === me ? 'You win' : `${r ? r.name : 'Your friend'} wins`;
+    const tail = state.sweep ? ' No more moves were possible, so each player kept the seeds on their side.' : '';
+    const asked = s.rematch[me], theyAsked = s.rematch[1 - me];
+    const first = $('#result').hidden;
+    showResult(title, `Final score ${state.score[me]} to ${state.score[1 - me]}.${tail}${theyAsked && !asked ? ` ${r.name} wants a rematch.` : ''}`,
+      asked ? `Waiting for ${r ? r.name : 'your friend'}` : 'Rematch', () => netSend({ t: 'rematch' }));
+    $('#resultMain').disabled = asked;
+    if (first) sfx.tune(w === me || w === -1 ? [392, 494, 587, 784] : [392, 330, 262]);
+  }
+
+  function showReaction(seat, e) {
+    const bar = seat === bottom ? $('#barBottom') : $('#barTop');
+    const el = document.createElement('span');
+    el.className = 'react-pop';
+    el.textContent = EMOJI[e] || '';
+    bar.appendChild(el);
+    setTimeout(() => el.remove(), 1700);
+    sfx.rattle(2);
+  }
+
+  function onlineError(text) {
+    $('#onlineError').textContent = text;
+    $('#onlineError').hidden = !text;
+  }
+
+  async function createOnline() {
+    onlineError('');
+    const pending = hashCode();
+    if (pending) return joinOnline(pending);
+    $('#playOnline').disabled = true;
+    try {
+      const res = await fetch('/api/room', { method: 'POST' });
+      if (!res.ok) throw new Error(String(res.status));
+      joinOnline((await res.json()).code);
+    } catch {
+      onlineError('Could not reach the game server. Check your connection and try again.');
+    }
+    $('#playOnline').disabled = false;
+  }
+
+  // The online card only appears where a game server answers (not in the offline preview).
+  async function setupOnline() {
+    EMOJI.forEach((ch, e) => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.textContent = ch;
+      b.setAttribute('aria-label', ['Thumbs up', 'Laughing', 'Surprised', 'Sad', 'Fire'][e]);
+      b.addEventListener('click', () => netSend({ t: 'react', e }));
+      $('#reacts').appendChild(b);
+    });
+    $('#nick').value = store.get('nick', '');
+    $('#playOnline').addEventListener('click', createOnline);
+    $('#inviteCopy').addEventListener('click', () => {
+      const box = $('#inviteLink'), done = () => { $('#inviteCopy').textContent = 'Copied'; };
+      const select = () => { box.focus(); box.select(); };
+      try { navigator.clipboard.writeText(box.value).then(done, select); } catch { select(); }
+    });
+    if (navigator.share) {
+      $('#inviteShare').hidden = false;
+      $('#inviteShare').addEventListener('click', () => {
+        navigator.share({ title: Brand.NAME, text: `Play ${Brand.NAME} with me`, url: $('#inviteLink').value }).catch(() => {});
+      });
+    }
+    try {
+      if (!/^https?:$/.test(location.protocol)) return;
+      const res = await fetch('/api/ping', { cache: 'no-store' });
+      if (!res.ok || !(await res.json()).ok) return;
+    } catch { return; }
+    $('#onlineCard').hidden = false;
+    if (hashCode()) {
+      $('#onlineTitle').textContent = 'Your friend invited you to play';
+      $('#onlineNote').textContent = 'Type your name and join their game.';
+      $('#playOnline').textContent = 'Join the game';
+      if (store.get('nick', '')) joinOnline(hashCode()); // a returning player goes straight in
+    }
   }
 
   // ---------- brand and opening screen ----------
@@ -504,6 +729,7 @@
   // ---------- wiring ----------
   buildBoard();
   intro();
+  setupOnline();
   drawSound();
   drawHome();
   $('#sound').addEventListener('click', () => { soundOn = !soundOn; store.set('sound', soundOn); drawSound(); sfx.drop(); });

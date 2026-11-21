@@ -1,0 +1,9 @@
+{
+  // Cloudflare settings: the game page is served from dist/, the game server is server/worker.js.
+  "name": "oware-king",
+  "main": "server/worker.js",
+  "compatibility_date": "2025-06-01",
+  "assets": { "directory": "./dist" },
+  "durable_objects": { "bindings": [{ "name": "ROOMS", "class_name": "Room" }] },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["Room"] }]
+}
