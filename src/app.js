@@ -703,27 +703,78 @@
   }
 
   // ---------- brand and opening screen ----------
-  const headerLogo = Pixel.logoCanvas(3);
+  // The header logo is drawn at a whole number of screen pixels per art pixel, so it stays sharp.
+  const dpr = window.devicePixelRatio || 1;
+  const logoArt = Pixel.logoCanvas(3), logoK = Math.max(1, Math.round(dpr));
+  const headerLogo = document.createElement('canvas');
+  headerLogo.width = logoArt.width * logoK;
+  headerLogo.height = logoArt.height * logoK;
+  const hctx = headerLogo.getContext('2d');
+  hctx.imageSmoothingEnabled = false;
+  hctx.drawImage(logoArt, 0, 0, headerLogo.width, headerLogo.height);
+  headerLogo.style.width = headerLogo.width / dpr + 'px';
+  headerLogo.style.height = headerLogo.height / dpr + 'px';
   headerLogo.setAttribute('role', 'img');
   headerLogo.setAttribute('aria-label', Brand.NAME);
   $('#brand').appendChild(headerLogo);
   $('#weave').innerHTML = Brand.seedBand();
+
+  // The title screen covers the page from the first paint (see index.html) and is skipped on return visits.
   function intro() {
-    let seen = false;
-    try { seen = sessionStorage.getItem('oware.intro') === '1'; sessionStorage.setItem('oware.intro', '1'); } catch { /* show it */ }
-    if (seen) return;
-    const el = $('#intro'), cv = $('#introCv'), art = Pixel.title();
-    let open = true;
-    el.hidden = false;
-    if (reduced) Pixel.drawTitle(cv, art, Infinity);
-    else {
-      const t0 = performance.now();
-      const frame = (now) => { if (!open) return; Pixel.drawTitle(cv, art, now - t0); requestAnimationFrame(frame); };
-      requestAnimationFrame(frame);
-    }
-    const close = () => { open = false; el.classList.add('out'); setTimeout(() => { el.hidden = true; }, 400); };
+    const el = $('#intro'), cv = $('#introCv'), app = document.querySelector('.app');
+    if (el.hidden) return;
+    try { sessionStorage.setItem('oware.intro', '1'); } catch { /* it will show again next time */ }
+    let open = true, timer = 0, byKey = false;
+    app.inert = true; // nothing behind the title can be tapped, tabbed to or read out
+    app.setAttribute('aria-hidden', 'true');
+    const onKey = (e) => {
+      if (e.key !== 'Enter' && e.key !== ' ' && e.key !== 'Escape') return;
+      e.preventDefault();
+      byKey = true;
+      close();
+    };
+    const close = () => {
+      if (!open) return;
+      open = false;
+      clearTimeout(timer);
+      document.removeEventListener('keydown', onKey);
+      app.inert = false;
+      app.removeAttribute('aria-hidden');
+      el.classList.add('out'); // it keeps swallowing taps while it fades
+      setTimeout(() => {
+        el.hidden = true;
+        const next = [$('#playOnline'), $('#playDaily')].find((b) => b.offsetParent);
+        if (byKey && next) next.focus({ preventScroll: true });
+      }, 450);
+    };
     el.addEventListener('click', close);
-    setTimeout(close, 9000); // never trap a player on the title screen
+    document.addEventListener('keydown', onKey);
+    try { el.focus({ preventScroll: true }); } catch { /* older browsers */ }
+    // Let the dark cover paint first, then build the art in its own task.
+    requestAnimationFrame(() => setTimeout(() => {
+      if (!open) return;
+      // Whole screen pixels per art pixel: square, even pixels on every screen.
+      const pw = innerWidth * dpr, ph = innerHeight * dpr;
+      let s = Math.max(1, Math.floor(Math.min(pw / 156, ph / Pixel.AH))), W, H;
+      for (;;) {
+        W = Math.max(156, Math.ceil(pw / s));
+        H = Math.max(Pixel.AH, Math.ceil(ph / s));
+        if (W * H <= 260000) break;
+        s++; // very large screens: bigger pixels keep the drawing fast
+      }
+      cv.width = W;
+      cv.height = H;
+      cv.style.width = (W * s) / dpr + 'px';
+      cv.style.height = (H * s) / dpr + 'px';
+      const art = Pixel.title(W, H);
+      if (reduced) Pixel.drawTitle(cv, art, Infinity);
+      else {
+        const t0 = performance.now();
+        const frame = (now) => { if (!open) return; Pixel.drawTitle(cv, art, now - t0); requestAnimationFrame(frame); };
+        requestAnimationFrame(frame);
+      }
+      timer = setTimeout(close, 9000); // never trap a player on the title screen
+    }, 30));
   }
 
   // ---------- wiring ----------

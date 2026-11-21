@@ -12,6 +12,8 @@ const Pixel = (() => {
     '#6e1f12', '#a83420', '#d2532f', '#ee8a55', // red earth
     '#8f8068', '#c9b99c', '#fdf0dc', '#ffffff', // cream
   ].map(hex);
+  // The map uses only outline, sand and forest colours, so no grey or logo gold creeps into the land.
+  const MAP_PAL = ['#07060f', '#fff3b0', '#f7e3b4', '#ecc98a', '#d6a35e', '#b47a3c', '#8a5426', '#5a3218', '#a9cf6e', '#6dbb5e', '#2f9a58', '#1f6e46', '#14472f', '#0c2a1c'].map(hex);
   const BAYER = [0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5];
   const LIGHT = (() => { const v = [-0.55, -0.65, 0.52], n = Math.hypot(...v); return v.map((c) => c / n); })();
 
@@ -35,21 +37,28 @@ const Pixel = (() => {
     b.d[i] = c[0]; b.d[i + 1] = c[1]; b.d[i + 2] = c[2]; b.d[i + 3] = 1;
   }
   const has = (b, x, y) => x >= 0 && y >= 0 && x < b.w && y < b.h && b.d[(y * b.w + x) * 4 + 3] > 0;
-  function toCanvas(b, spread = 26) {
+  // spread: strength of the all-over dither. band: if set, colours stay flat and are dithered
+  // only in a narrow band where two palette colours meet (cleaner for skies).
+  function toCanvas(b, spread = 26, pal = PAL, band = 0) {
     const cv = document.createElement('canvas');
     cv.width = b.w; cv.height = b.h;
     const ctx = cv.getContext('2d'), img = ctx.createImageData(b.w, b.h), o = img.data;
     for (let y = 0; y < b.h; y++) for (let x = 0; x < b.w; x++) {
       const i = (y * b.w + x) * 4;
       if (b.d[i + 3] <= 0) continue;
-      const t = (BAYER[(y & 3) * 4 + (x & 3)] / 16 - 0.47) * spread;
+      const bay = BAYER[(y & 3) * 4 + (x & 3)], t = (bay / 16 - 0.47) * spread;
       const r = b.d[i] + t, g = b.d[i + 1] + t, bl = b.d[i + 2] + t;
-      let best = 0, bd = 1e9;
-      for (let k = 0; k < PAL.length; k++) {
-        const p = PAL[k], d = (p[0] - r) ** 2 + (p[1] - g) ** 2 + (p[2] - bl) ** 2;
-        if (d < bd) { bd = d; best = k; }
+      let best = 0, bd = 1e9, next = 0, nd = 1e9;
+      for (let k = 0; k < pal.length; k++) {
+        const q = pal[k], d = (q[0] - r) ** 2 + (q[1] - g) ** 2 + (q[2] - bl) ** 2;
+        if (d < bd) { nd = bd; next = best; bd = d; best = k; } else if (d < nd) { nd = d; next = k; }
       }
-      o[i] = PAL[best][0]; o[i + 1] = PAL[best][1]; o[i + 2] = PAL[best][2]; o[i + 3] = 255;
+      if (band) {
+        const p0 = pal[best], p1 = pal[next], e = [p1[0] - p0[0], p1[1] - p0[1], p1[2] - p0[2]];
+        const f = ((r - p0[0]) * e[0] + (g - p0[1]) * e[1] + (bl - p0[2]) * e[2]) / (e[0] ** 2 + e[1] ** 2 + e[2] ** 2 || 1);
+        if ((f - 0.5 + band) / (2 * band) > (bay + 0.5) / 16) best = next;
+      }
+      o[i] = pal[best][0]; o[i + 1] = pal[best][1]; o[i + 2] = pal[best][2]; o[i + 3] = 255;
     }
     ctx.putImageData(img, 0, 0);
     return cv;
@@ -65,19 +74,34 @@ const Pixel = (() => {
 
   function landMap(ox, oy, scale, w, h) {
     const polys = [AFRICA, MADAGASCAR].map((p) => p.map(([lon, lat]) => [ox + (lon + 18) * scale, oy + (37.5 - lat) * scale]));
+    const segs = [];
+    let bx0 = 1e9, by0 = 1e9, bx1 = -1e9, by1 = -1e9;
+    for (const p of polys) {
+      const sg = new Float64Array(p.length * 5);
+      for (let i = 0, j = p.length - 1; i < p.length; j = i++) {
+        const x1 = p[i][0], y1 = p[i][1], dx = p[j][0] - x1, dy = p[j][1] - y1;
+        sg.set([x1, y1, dx, dy, 1 / (dx * dx + dy * dy)], i * 5);
+        bx0 = Math.min(bx0, x1); bx1 = Math.max(bx1, x1); by0 = Math.min(by0, y1); by1 = Math.max(by1, y1);
+      }
+      segs.push(sg);
+    }
     // Distance to the coast: positive on land, negative at sea.
     const dist = (x, y) => {
-      let dm = 1e9, inside = false;
-      for (const p of polys) {
+      if (x < bx0 - 8 || x > bx1 + 8 || y < by0 - 8 || y > by1 + 8) return -8; // open sea, far from land
+      let dm = 1e18, inside = false;
+      for (const sg of segs) {
         let c = false;
-        for (let i = 0, j = p.length - 1; i < p.length; j = i++) {
-          const [x1, y1] = p[i], [x2, y2] = p[j];
-          if ((y1 > y) !== (y2 > y) && x < ((x2 - x1) * (y - y1)) / (y2 - y1) + x1) c = !c;
-          const dx = x2 - x1, dy = y2 - y1, t = clamp(((x - x1) * dx + (y - y1) * dy) / (dx * dx + dy * dy));
-          dm = Math.min(dm, Math.hypot(x - x1 - t * dx, y - y1 - t * dy));
+        for (let k = 0; k < sg.length; k += 5) {
+          const x1 = sg[k], y1 = sg[k + 1], dx = sg[k + 2], dy = sg[k + 3], px = x - x1, py = y - y1;
+          if ((y1 > y) !== (y1 + dy > y) && x < (dx * py) / dy + x1) c = !c;
+          let t = (px * dx + py * dy) * sg[k + 4];
+          t = t < 0 ? 0 : t > 1 ? 1 : t;
+          const ex = px - t * dx, ey = py - t * dy, d2 = ex * ex + ey * ey;
+          if (d2 < dm) dm = d2;
         }
         inside = inside || c;
       }
+      dm = Math.sqrt(dm);
       return inside ? dm : -dm;
     };
     const D = new Float32Array(w * h), H = new Float32Array(w * h);
@@ -107,16 +131,16 @@ const Pixel = (() => {
   const G = {
     A: ['.###.', '#...#', '#...#', '#####', '#...#', '#...#', '#...#'],
     E: ['#####', '#....', '#....', '####.', '#....', '#....', '#####'],
-    G: ['.###.', '#...#', '#....', '#.###', '#...#', '#...#', '.###.'],
+    G: ['.####', '#....', '#....', '#..##', '#...#', '#...#', '.###.'],
     I: ['#####', '..#..', '..#..', '..#..', '..#..', '..#..', '#####'],
     K: ['#...#', '#..#.', '#.#..', '##...', '#.#..', '#..#.', '#...#'],
     N: ['#...#', '##..#', '##..#', '#.#.#', '#..##', '#..##', '#...#'],
     O: ['.###.', '#...#', '#...#', '#...#', '#...#', '#...#', '.###.'],
     R: ['####.', '#...#', '#...#', '####.', '#.#..', '#..#.', '#...#'],
-    W: ['#...#', '#...#', '#...#', '#.#.#', '#.#.#', '##.##', '#...#'],
+    W: ['#...#', '#...#', '#...#', '#.#.#', '#.#.#', '#.#.#', '.#.#.'],
   };
   const TINY = {
-    A: ['.#.', '#.#', '###', '#.#', '#.#'], O: ['###', '#.#', '#.#', '#.#', '###'], P: ['##.', '#.#', '##.', '#..', '#..'],
+    A: ['.#.', '#.#', '###', '#.#', '#.#'], O: ['###', '#.#', '#.#', '#.#', '###'], P: ['###', '#.#', '###', '#..', '#..'],
     R: ['##.', '#.#', '##.', '#.#', '#.#'], S: ['.##', '#..', '.#.', '..#', '##.'], T: ['###', '.#.', '.#.', '.#.', '.#.'],
   };
   const RAMPS = {
@@ -137,56 +161,82 @@ const Pixel = (() => {
   }
 
   // Draws one word as bevelled metal letters: bright top-left edges, dark bottom-right edges,
-  // a face that shades from light to deep, a moving-looking glint, a dark outline and a cast shadow.
+  // a face in three flat tones, one thin glint, a dark outline and a soft cast shadow.
+  // Every O is a carved pit with one seed resting in it.
   function drawWord(b, text, ox, oy, cell, gap, ramp, seed) {
-    const w = text.length * (5 * cell + gap) - gap, h = 7 * cell;
+    const w = text.length * (5 * cell + gap) - gap, h = 7 * cell, pitch = 5 * cell + gap, big = cell > 3;
     const m = new Uint8Array(w * h), on = (x, y) => x >= 0 && y >= 0 && x < w && y < h && m[y * w + x] === 1;
     const pits = [];
     [...text].forEach((ch, n) => {
-      const x0 = n * (5 * cell + gap);
-      G[ch].forEach((row, ry) => [...row].forEach((c, cx) => {
-        if (c !== '#') return;
-        for (let y = 0; y < cell; y++) for (let x = 0; x < cell; x++) m[(ry * cell + y) * w + x0 + cx * cell + x] = 1;
-      }));
+      const x0 = n * pitch, g = (r, c) => (G[ch][r] || '')[c] === '#';
+      for (let ry = 0; ry < 7; ry++) for (let cx = 0; cx < 5; cx++) {
+        const px = x0 + cx * cell, py = ry * cell;
+        for (let y = 0; y < cell; y++) for (let x = 0; x < cell; x++) {
+          if (g(ry, cx)) { m[(py + y) * w + px + x] = 1; continue; }
+          // Where two blocks of a slanted stroke touch only at a corner, fill the step between them,
+          // so the stroke is one solid diagonal and not a string of beads.
+          const X = cell - 1 - x, Y = cell - 1 - y;
+          if ((g(ry, cx - 1) && g(ry - 1, cx) && !g(ry - 1, cx - 1) && x + y < cell)
+            || (g(ry, cx + 1) && g(ry - 1, cx) && !g(ry - 1, cx + 1) && X + y < cell)
+            || (g(ry, cx - 1) && g(ry + 1, cx) && !g(ry + 1, cx - 1) && x + Y < cell)
+            || (g(ry, cx + 1) && g(ry + 1, cx) && !g(ry + 1, cx + 1) && X + Y < cell)) m[(py + y) * w + px + x] = 1;
+        }
+      }
       if (ch === 'O') pits.push(x0 + Math.floor(2.5 * cell));
     });
     // Knock one pixel off every outside corner so the blocks look cut, not printed.
-    const cut = [];
+    const cutList = [];
     for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
       if (!on(x, y)) continue;
       const l = on(x - 1, y), r = on(x + 1, y), u = on(x, y - 1), d = on(x, y + 1);
-      // A corner is only cut when nothing touches it diagonally, so slanted strokes stay joined.
-      if ((!l && !u && !on(x - 1, y - 1)) || (!r && !u && !on(x + 1, y - 1)) || (!l && !d && !on(x - 1, y + 1)) || (!r && !d && !on(x + 1, y + 1))) cut.push(y * w + x);
+      if ((!l && !u && !on(x - 1, y - 1)) || (!r && !u && !on(x + 1, y - 1)) || (!l && !d && !on(x - 1, y + 1)) || (!r && !d && !on(x + 1, y + 1))) cutList.push(y * w + x);
     }
-    if (cell > 2) cut.forEach((i) => { m[i] = 0; });
+    if (cell > 2) cutList.forEach((i) => { m[i] = 0; });
     const sh = Math.max(1, Math.round(cell * 0.5));
     for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
       if (!on(x, y)) continue;
-      for (let k = 1; k <= sh; k++) put(b, ox + x + k, oy + y + k + 1, OUTLINE);
+      // The cast shadow is a checker pattern, so the sky shows through it. Small logos have none.
+      if (big && ((ox + x + oy + y) & 1)) for (let k = 1; k <= sh; k++) put(b, ox + x + k, oy + y + k + 1, OUTLINE);
       for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) put(b, ox + x + dx, oy + y + dy, OUTLINE);
     }
     const [hi, light, mid, dark, lo] = ramp;
     for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
       if (!on(x, y)) continue;
-      const t = y / (h - 1);
-      let c = t < 0.45 ? mix(light, mid, t / 0.45) : mix(mid, dark, (t - 0.45) / 0.55);
-      if ((x + y * 0.7 + 400) % (cell * 9) < cell * 0.8) c = mix(c, hi, 0.65); // glint
+      const f = Math.min((y / (h - 1)) * 2, 1.999), bandN = f | 0, seam = (f - bandN - 0.3) / 0.4;
+      let c = [light, mid, dark][bandN + (seam > (BAYER[(y & 3) * 4 + (x & 3)] + 0.5) / 16 ? 1 : 0)];
+      const gl = Math.floor((x % pitch) + y * 0.7 - cell * 3.4);
+      if (big && (gl === 0 || gl === 1)) c = hi; // one thin glint per letter
+      else if (big && gl === 2 && bandN > 0) c = light;
       if (!on(x - 1, y) || !on(x, y - 1)) c = hi;
       else if (!on(x + 1, y) || !on(x, y + 1)) c = lo;
       put(b, ox + x, oy + y, c);
     }
-    pits.forEach((px) => sphere(b, ox + px, oy + Math.floor(3.5 * cell), Math.max(2, Math.round(cell * 1.05)), seed));
+    const WOOD = hex('#5a3218'), WALL = hex('#2b1605'), RIM = hex('#b47a3c');
+    pits.forEach((px) => {
+      const x1 = px - Math.floor(1.5 * cell) + 1, x2 = x1 + 3 * cell - 3, y1 = cell + 1, y2 = 6 * cell - 2;
+      for (let y = y1; y <= y2; y++) for (let x = x1; x <= x2; x++) {
+        if ((x === x1 || x === x2) && (y === y1 || y === y2) && cell > 2) continue;
+        const wall = Math.min(x - x1, y - y1), rim = Math.min(x2 - x, y2 - y);
+        put(b, ox + x, oy + y, wall < Math.max(1, cell - 3) ? WALL : rim === 0 ? RIM : WOOD);
+      }
+      const r = Math.max(2, Math.round(cell * (big ? 0.8 : 0.7))), sy = y2 - r - 2;
+      for (let y = -r; y <= r; y++) for (let x = -r; x <= r; x++) if (Math.hypot(x, y) <= r + 0.2) put(b, ox + px + x + 1, oy + sy + y + 2, WALL);
+      sphere(b, ox + px, oy + sy, r, seed);
+    });
     return { w, h };
   }
 
-  function tiny(b, text, ox, oy, c) {
-    [...text].forEach((ch, n) => (TINY[ch] || []).forEach((row, y) => [...row].forEach((p, x) => { if (p === '#') put(b, ox + n * 4 + x, oy + y, c); })));
+  function tiny(b, text, ox, oy, c, s = 1) {
+    [...text].forEach((ch, n) => (TINY[ch] || []).forEach((row, y) => [...row].forEach((p, x) => {
+      if (p === '#') for (let j = 0; j < s; j++) for (let i = 0; i < s; i++) put(b, ox + (n * 4 + x) * s + i, oy + y * s + j, c);
+    })));
   }
 
   // A row of Oware seeds, each one a small lit ball.
   const SEEDS = ['#f2b01e', '#fdf0dc', '#2f9a58', '#f2b01e', '#d2532f', '#c9b99c'].map(hex);
-  function seedRow(b, cy, r, step, x0 = Math.floor(step / 2)) {
-    for (let x = x0, n = 0; x < b.w; x += step, n++) sphere(b, x, cy, r, SEEDS[n % SEEDS.length]);
+  function seedRow(b, cy, r, step) {
+    const count = Math.floor(b.w / step), x0 = Math.floor((b.w - (count - 1) * step) / 2); // centred, never cut off
+    for (let x = x0, n = 0; n < count; x += step, n++) sphere(b, x, cy, r, SEEDS[n % SEEDS.length]);
   }
 
   // ---------- pieces ----------
@@ -199,31 +249,38 @@ const Pixel = (() => {
     return toCanvas(b, 0);
   }
 
-  const W = 160, H = 284;
-  // The title screen, as layers that the opening animation puts together.
-  function title() {
-    const mapScale = 1.62, mapX = 23, mapY = 22, cx = mapX + 35 * mapScale + 2, cy = mapY + 34 * mapScale;
+  // The picture is composed on a 160 x 284 grid. On a larger canvas the same picture sits in the
+  // middle and the sky, stars and seed borders run on to the edges.
+  const AW = 160, AH = 284;
+  function title(W = AW, H = AH) {
+    const ox = (W - AW) >> 1, oy = (H - AH) >> 1;
+    const mapScale = 1.62, mapX = 23 + ox, mapY = 22 + oy, cx = mapX + 35 * mapScale + 2, cy = mapY + 34 * mapScale;
     const land = landMap(mapX, mapY, mapScale, W, H);
     const at = (a, x, y) => (x < 0 || y < 0 || x >= W || y >= H ? 0 : a[y * W + x]);
+    const NIGHT = hex('#0e0c20'), INDIGO = hex('#1f1c4d'), PLUM = hex('#5c2a66'), ROSE = hex('#b8505a'), SURF = hex('#5a58b8');
 
     // Background: night sky, a dusk glow behind the continent, stars, the continent's shadow.
     const bg = buf(W, H);
     const stars = [];
     for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
       const t = y / H;
-      let c = t < 0.5 ? mix(hex('#0e0c20'), hex('#1f1c4d'), t / 0.5) : mix(hex('#1f1c4d'), hex('#0e0c20'), (t - 0.5) / 0.5);
+      let c = t < 0.5 ? mix(NIGHT, INDIGO, t / 0.5) : mix(INDIGO, NIGHT, (t - 0.5) / 0.5);
       const g = Math.exp(-(((x - cx) / 62) ** 2 + ((y - cy) / 70) ** 2));
-      c = mix(c, hex('#5c2a66'), clamp(g * 1.1));
-      c = mix(c, hex('#b8505a'), clamp((g - 0.55) * 1.6));
-      if (at(land.D, x - 4, y - 6) > 0) c = mul(c, 0.45);
+      c = mix(c, PLUM, clamp(g * 1.1));
+      c = mix(c, ROSE, clamp((g - 0.5) * 2.4));
+      if (at(land.D, x - 4, y - 6) > 0) c = mix(c, NIGHT, 0.7); // the shadow stays in the night blues
       const surf = at(land.D, x, y);
-      if (surf < 0 && surf > -3.2) c = mix(c, hex('#5a58b8'), 0.55 * (1 + surf / 3.2));
+      if (surf < 0 && surf > -3.2) c = mix(c, SURF, 0.55 * (1 + surf / 3.2));
       if (y < 13 || y >= H - 13) c = mul(c, 0.5); // a darker band for the seed borders
       put(bg, x, y, c);
-      if (hash(x * 1.7, y * 2.3) > 0.9925 && g < 0.35 && y > 16 && y < 150) stars.push([x, y]);
+      if (hash(x * 1.7, y * 2.3) > 0.9925 && g < 0.35 && y > 16 && (y < oy + 150 || x < ox || x >= ox + AW) && y < H - 16) stars.push([x, y]);
     }
-    seedRow(bg, 6, 4, 10);
-    seedRow(bg, H - 7, 4, 10);
+    // The border seeds are on their own layer so the sky's dither never dirties them.
+    const border = buf(W, H);
+    seedRow(border, 6, 4, 10);
+    seedRow(border, H - 7, 4, 10);
+    const bgCv = toCanvas(bg, 0, PAL, 0.14);
+    bgCv.getContext('2d').drawImage(toCanvas(border, 0), 0, 0);
 
     // The continent: lit relief, coloured by climate, with a dark coast line.
     const map = buf(W, H);
@@ -237,23 +294,24 @@ const Pixel = (() => {
       put(map, x, y, mul(c, 0.5 + 0.85 * clamp(lit)));
     }
 
-    // The logo, the stripe under it and the prompt.
-    const logo = buf(W, 96);
+    // The logo, the line of seeds under it and the prompt.
+    const logo = buf(AW, 96);
     drawWord(logo, 'OWARE', 12, 2, 5, 3, RAMPS.gold, hex('#2f9a58'));
     drawWord(logo, 'KING', 26, 46, 5, 3, RAMPS.cream, hex('#d2532f'));
     const stripe = buf(112, 7);
     seedRow(stripe, 3, 2, 8);
-    const tap = buf(48, 5);
-    tiny(tap, 'TAP TO START', 0, 0, hex('#fdf0dc'));
+    const tap = buf(97, 13);
+    for (let dy = 0; dy <= 3; dy++) for (let dx = 0; dx <= 3; dx++) tiny(tap, 'TAP TO START', dx, dy, OUTLINE, 2); // outline and shadow
+    tiny(tap, 'TAP TO START', 1, 1, hex('#fdf0dc'), 2);
 
     return {
-      W, H, stars, ghana: land.ghana.map(Math.round),
-      bg: toCanvas(bg), map: toCanvas(map, 30), logo: toCanvas(logo, 0), stripe: toCanvas(stripe, 0), tap: toCanvas(tap, 0),
+      W, H, ox, oy, stars, ghana: land.ghana.map(Math.round),
+      bg: bgCv, map: toCanvas(map, 30, MAP_PAL), logo: toCanvas(logo, 0), stripe: toCanvas(stripe, 0), tap: toCanvas(tap, 0),
     };
   }
 
-  // Plays the opening on `cv` and calls nothing back: the screen simply stays until it is closed.
-  // t is the time in milliseconds since the opening began. Pass Infinity for the finished picture.
+  // Draws the title screen on `cv` as it looks t milliseconds after it opened.
+  // Pass Infinity for the finished picture.
   function drawTitle(cv, T, t) {
     const ctx = cv.getContext('2d');
     ctx.imageSmoothingEnabled = false;
@@ -263,14 +321,15 @@ const Pixel = (() => {
     if (p >= 1) ctx.drawImage(T.map, 0, 0);
     else if (p > 0) {
       if (!T.mapData) T.mapData = T.map.getContext('2d').getImageData(0, 0, T.W, T.H);
-      const src = T.mapData.data, out = ctx.getImageData(0, 0, T.W, T.H), o = out.data;
-      for (let y = 0; y < T.H; y++) for (let x = 0; x < T.W; x++) {
-        const i = (y * T.W + x) * 4;
+      const src = T.mapData.data, x0 = Math.max(0, T.ox), y0 = Math.max(0, T.oy), w = Math.min(AW, T.W), h = Math.min(170, T.H);
+      const out = ctx.getImageData(x0, y0, w, h), o = out.data;
+      for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+        const i = ((y + y0) * T.W + x + x0) * 4, j = (y * w + x) * 4;
         if (!src[i + 3]) continue;
         const gate = (y / 150) * 0.7 + (BAYER[(y & 3) * 4 + (x & 3)] / 16) * 0.3;
-        if (gate < p * 1.05) { o[i] = src[i]; o[i + 1] = src[i + 1]; o[i + 2] = src[i + 2]; }
+        if (gate < p * 1.05) { o[j] = src[i]; o[j + 1] = src[i + 1]; o[j + 2] = src[i + 2]; }
       }
-      ctx.putImageData(out, 0, 0);
+      ctx.putImageData(out, x0, y0);
     }
     // Stars twinkle.
     T.stars.forEach(([x, y], n) => {
@@ -294,13 +353,13 @@ const Pixel = (() => {
       const k = clamp((t - start) / 420);
       return k >= 1 ? 0 : Math.round(-70 * (1 - k) ** 2 + (k > 0.75 ? Math.sin((k - 0.75) * 4 * Math.PI) * -3 : 0));
     };
-    if (t > 1100) ctx.drawImage(T.logo, 0, 0, T.W, 44, 0, 150 + drop(1100), T.W, 44);
-    if (t > 1450) ctx.drawImage(T.logo, 0, 44, T.W, 52, 0, 194 + drop(1450), T.W, 52);
-    if (t > 1900) ctx.drawImage(T.stripe, 24, 244);
-    if (t > 2200 && (!Number.isFinite(t) || Math.floor(t / 520) % 2 === 0)) ctx.drawImage(T.tap, 57, 258);
+    if (t > 1100) ctx.drawImage(T.logo, 0, 0, AW, 44, T.ox, T.oy + 150 + drop(1100), AW, 44);
+    if (t > 1450) ctx.drawImage(T.logo, 0, 44, AW, 52, T.ox, T.oy + 194 + drop(1450), AW, 52);
+    if (t > 1900) ctx.drawImage(T.stripe, T.ox + 24, T.oy + 242);
+    if (t > 2200 && (!Number.isFinite(t) || Math.floor(t / 520) % 2 === 0)) ctx.drawImage(T.tap, T.ox + 32, T.oy + 254);
   }
 
-  return { W, H, title, drawTitle, logoCanvas };
+  return { AW, AH, title, drawTitle, logoCanvas };
 })();
 
 if (typeof module !== 'undefined') module.exports = Pixel;

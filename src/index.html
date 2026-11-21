@@ -5,7 +5,8 @@
 /*CSS*/
 </style>
 
-<button id="intro" type="button" aria-label="Start" hidden><canvas id="introCv" width="160" height="284"></canvas></button>
+<button id="intro" type="button" aria-label="Oware King. Start game"><canvas id="introCv" width="160" height="284"></canvas></button>
+<script>try { if (sessionStorage.getItem('oware.intro') === '1') document.getElementById('intro').hidden = true; } catch (e) { /* show the title */ }</script>
 
 <div class="app">
   <header class="top">

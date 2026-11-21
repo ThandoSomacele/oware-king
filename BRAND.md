@@ -6,16 +6,17 @@
 - Alternative kept in reserve: **Oware Hene** ("ɔhene" is "king" or "chief" in Twi). No clashing product was found for it, but a Twi speaker has not confirmed the wording.
 
 ## Logo
-- Drawn by `Brand.logo()` in `src/brand.js`. The letters are woven blocks on a 5 x 7 grid, not a font.
-- "OWARE" is gold, "KING" is cream. Every O is a pit that holds one seed.
-- A woven stripe runs under the words. Do not remove it or recolour it.
-- Use the one-line logo in headers and the stacked logo on the opening screen and store art.
-- Always place it on the warm black ground (`#14110e`). Leave clear space of one letter height around it.
-- Do not stretch it, outline it, add shadows, or set the name in an ordinary font as a substitute.
+- Drawn in code by `drawWord()` in `src/pixel.js`, in the style of 16-bit console title screens. It is not a font.
+- "OWARE" is bevelled gold, "KING" is bevelled cream. Light comes from the top left: bright top and left edges, dark bottom and right edges, one thin glint per letter, a dark outline.
+- Every O is a carved wooden pit with one seed resting in it.
+- A line of small seeds runs under the words on the title screen.
+- The header uses the one-line logo (`Pixel.logoCanvas`). The title screen uses the stacked logo.
+- Always place it on a dark ground. Leave clear space of one letter height around it.
+- Show it at whole-number pixel sizes only. Do not stretch it, smooth it, or set the name in an ordinary font as a substitute.
 
 ## App icon
-- Drawn by `Brand.icon()`: a gold block crown above a wooden pit with three seeds (cream, gold, green).
-- Keep the crown as plain blocks. Do not add a face, jewels or a cartoon style, so it stays clear of other "King" games.
+- Drawn by `Brand.icon()`: a gold block crown above a wooden pit with three seeds (cream, gold, green). It is an early flat version and should be redrawn in the pixel style before store launch.
+- Keep the crown plain. Do not add a face, jewels or a cartoon style, so it stays clear of other "King" games.
 
 ## Colours
 | Name | Hex | Use |
@@ -27,14 +28,14 @@
 | Cream | `#fdf0dc` | Text, second word of the logo |
 | Wood | `#9a6535` | Board |
 
-## Patterns
-- Four woven tiles in `Brand.TILES`: stripe, blocks, zigzag, steps. Drawn as square pixels.
-- They are original designs based on how strip-woven cloth is built (bands, blocks, steps).
-- They are not copies of named Kente cloths or Adinkra symbols. Ghana's copyright law treats those as protected folklore, and commercial use can need permission. Get legal advice before using a real one.
+## Borders and bands
+- Borders are rows of round Oware seeds, each lit from the top left, in gold, cream, green and red earth.
+- Do not use square block or brick patterns: they make the game look like a toy-brick game.
+- All patterns are original. They are not copies of named Kente cloths or Adinkra symbols. Ghana's copyright law treats those as protected folklore, and commercial use can need permission. Get legal advice before using a real one.
 
-## Pixel map of Africa
-- `Brand.africaSVG()` draws the map on a 24 x 26 grid. West Africa is in brand colours and one gold pixel marks Ghana.
-- It appears on the opening screen only.
+## Title screen
+- `Pixel.title()` draws it: a night sky with a dusk glow, a lit relief map of Africa coloured by climate (sand, forest, dry south), and a gold spark on Ghana, the home of Oware.
+- It uses one small fixed palette and ordered dithering. Keep new art inside that palette.
 
 ## Sound
 - Seeds land with a short wooden knock; pick-up and capture are a seed rattle; results use wooden-key notes. No music, no beeps.
