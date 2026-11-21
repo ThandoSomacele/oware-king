@@ -94,54 +94,7 @@ const Brand = (() => {
 </svg>`;
   }
 
-  // Africa on a 24 x 26 pixel grid. '#' is land, 'W' is West Africa, 'G' marks Ghana, where Oware is the national game.
-  const AFRICA = [
-    '.......####.#####.......',
-    '.....##############.....',
-    '....################....',
-    '...##################...',
-    '..###################...',
-    '.#####################..',
-    '.WWWWWWWW##############.',
-    'WWWWWWWWW###############',
-    'WWWWWWWWW##############.',
-    'WWWWWWWWW###############',
-    '.WWWWWWWW##############.',
-    '.WWWWGWWW############...',
-    '..WWW..W#############...',
-    '.........############...',
-    '.........############...',
-    '..........###########...',
-    '..........##########....',
-    '..........##########....',
-    '...........#########....',
-    '...........#########..#.',
-    '...........########..##.',
-    '............#######..##.',
-    '............######...#..',
-    '............######......',
-    '.............####.......',
-    '.............###........',
-  ];
-  // The order in which the map's pixels appear: north to south with some scatter, West Africa last.
-  function africaCells() {
-    const cells = [];
-    AFRICA.forEach((row, y) => [...row].forEach((ch, x) => {
-      if (ch === '.') return;
-      const jitter = ((x * 7 + y * 13) % 5) / 5;
-      const order = ch === '#' ? y + jitter * 3 : ch === 'W' ? 32 + jitter * 3 : 38;
-      const fill = ch === 'G' ? C.gold : ch === 'W' ? [C.green, C.red, C.gold][(x + y) % 3] : (x + y) % 7 === 0 ? '#5a4a3a' : '#40352a';
-      cells.push({ x, y, ch, order, fill });
-    }));
-    return cells.sort((a, b) => a.order - b.order);
-  }
-  function africaSVG(u = 10) {
-    const g = u * 0.12;
-    return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${24 * u} ${26 * u}" role="img" aria-label="Pixel map of Africa with West Africa highlighted">${africaCells().map((c) =>
-      `<rect x="${c.x * u + g / 2}" y="${c.y * u + g / 2}" width="${u - g}" height="${u - g}" rx="${u * 0.15}" fill="${c.fill}" style="animation-delay:${Math.round(c.order * 40)}ms"/>`).join('')}</svg>`;
-  }
-
-  return { NAME, C, logo, band, icon, africaSVG, africaCells, AFRICA, TILES };
+  return { NAME, C, logo, band, icon, TILES };
 })();
 
 if (typeof module !== 'undefined') module.exports = Brand;

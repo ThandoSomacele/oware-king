@@ -484,19 +484,27 @@
   }
 
   // ---------- brand and opening screen ----------
-  $('#brand').innerHTML = Brand.logo(Brand.NAME);
+  const headerLogo = Pixel.logoCanvas(3);
+  headerLogo.setAttribute('role', 'img');
+  headerLogo.setAttribute('aria-label', Brand.NAME);
+  $('#brand').appendChild(headerLogo);
   $('#weave').innerHTML = Brand.band('blocks', 6, 96);
   function intro() {
     let seen = false;
     try { seen = sessionStorage.getItem('oware.intro') === '1'; sessionStorage.setItem('oware.intro', '1'); } catch { /* show it */ }
     if (seen) return;
-    const el = $('#intro');
-    $('#introMap').innerHTML = Brand.africaSVG();
-    $('#introMark').innerHTML = Brand.logo(Brand.NAME, { stacked: true });
+    const el = $('#intro'), cv = $('#introCv'), art = Pixel.title();
+    let open = true;
     el.hidden = false;
-    const close = () => { el.classList.add('out'); setTimeout(() => { el.hidden = true; }, 400); };
+    if (reduced) Pixel.drawTitle(cv, art, Infinity);
+    else {
+      const t0 = performance.now();
+      const frame = (now) => { if (!open) return; Pixel.drawTitle(cv, art, now - t0); requestAnimationFrame(frame); };
+      requestAnimationFrame(frame);
+    }
+    const close = () => { open = false; el.classList.add('out'); setTimeout(() => { el.hidden = true; }, 400); };
     el.addEventListener('click', close);
-    setTimeout(close, reduced ? 1500 : 3200);
+    setTimeout(close, 9000); // never trap a player on the title screen
   }
 
   // ---------- wiring ----------

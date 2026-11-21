@@ -5,6 +5,7 @@ const read = (f) => readFileSync(new URL('./src/' + f, import.meta.url), 'utf8')
 const page = read('index.html')
   .replace('/*CSS*/', () => read('style.css'))
   .replace('/*BRAND*/', () => read('brand.js'))
+  .replace('/*PIXEL*/', () => read('pixel.js'))
   .replace('/*ENGINE*/', () => read('engine.js'))
   .replace('/*APP*/', () => read('app.js'));
 
