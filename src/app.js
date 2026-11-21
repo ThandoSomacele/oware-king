@@ -84,18 +84,12 @@
     o.start(t);
     o.stop(t + dur + 0.02);
   }
-  // Three versions of the landing sound, to pick from by ear.
-  const VOICES = {
-    a: { pitch: 1300, len: 0.05, body: 0.05 },  // high
-    b: { pitch: 1700, len: 0.042, body: 0.03 }, // higher
-    c: { pitch: 2200, len: 0.035, body: 0.02 }, // highest
-  };
-  let voice = store.get('voice', 'a');
+  const VOICE = { pitch: 1300, len: 0.05, body: 0.05 }; // the landing sound chosen by ear
   const sfx = {
     // One seed lands in a pit that now holds n seeds.
     drop(n = 1) {
       if (!ready()) return;
-      const v = VOICES[voice] || VOICES.a;
+      const v = VOICE;
       const f = v.pitch * rand(0.92, 1.08), damp = (n > 3 ? 0.7 : 1) * 0.45; // a full pit rings less; 0.45 sets the overall level
       // Wood rings at fixed, unevenly spaced pitches that die away fast. No pitch slide.
       ring(f, 0.5 * damp, 0, v.len * damp);
@@ -518,14 +512,6 @@
   $('#playDaily').addEventListener('click', startDaily);
   $('#playAi').addEventListener('click', () => startGame('ai'));
   $('#playLocal').addEventListener('click', () => startGame('local'));
-  document.querySelectorAll('input[name="voice"]').forEach((r) => {
-    r.checked = r.value === voice;
-    r.addEventListener('click', () => {
-      voice = r.value;
-      store.set('voice', voice);
-      [0, 350, 700].forEach((ms, k) => setTimeout(() => sfx.drop(k + 1), ms));
-    });
-  });
   document.querySelectorAll('input[name="level"]').forEach((r) =>
     r.addEventListener('change', () => { level = r.value; store.set('level', level); }));
 })();
