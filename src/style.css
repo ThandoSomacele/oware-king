@@ -1,12 +1,14 @@
-/* Layout: one narrow column, the indigo board is the only strong shape; gold marks what you can tap. */
+/* One committed look: warm black ground, strip-weave gold, green and red earth, a carved wood board.
+   Layout: one narrow column; the board is the only large shape; gold marks what you can tap. */
 :root {
-  --bg: #eceef6;
-  --surface: #ffffff;
-  --ink: #15183a;
-  --muted: #575d82;
-  --line: #d3d8ea;
-  --card: #232a78;
-  --on-card: #dfe3ff;
+  color-scheme: dark;
+  --bg: #14110e;
+  --surface: #221c16;
+  --ink: #fdf0dc;
+  --muted: #b9a892;
+  --line: #3b3127;
+  --card: #134a35;
+  --on-card: #e6f2e4;
   --board: #9a6535;
   --board-edge: #6b4220;
   --bowl: #4a2a12;
@@ -16,22 +18,12 @@
   --seed-a: #ece6d2;
   --seed-b: #bfcdb9;
   --seed-c: #f3c66b;
-  --accent: #f0a214;
-  --accent-ink: #201500;
-  --good: #14845a;
-  --bad: #c23c34;
+  --accent: #f2b01e;
+  --accent-ink: #1d1400;
+  --good: #4fd09b;
+  --bad: #ff8076;
   --display: "Bricolage Grotesque", "Trebuchet MS", system-ui, sans-serif;
   --body: "Figtree", system-ui, -apple-system, "Segoe UI", sans-serif;
-}
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
-    --bg: #0d0f26; --surface: #181c40; --ink: #eef0ff; --muted: #a3a9cf; --line: #2c3268;
-    --card: #2a3190; --board: #80522a; --board-edge: #54331a; --bowl: #3a200d; --board-hi: #977450; --bowl-hi: #614d3d; --bowl-lo: #291609; --hand: #9b7551; --good: #4fd09b; --bad: #ff8076; color-scheme: dark;
-  }
-}
-:root[data-theme="dark"] {
-  --bg: #0d0f26; --surface: #181c40; --ink: #eef0ff; --muted: #a3a9cf; --line: #2c3268;
-  --card: #2a3190; --board: #80522a; --board-edge: #54331a; --bowl: #3a200d; --board-hi: #977450; --bowl-hi: #614d3d; --bowl-lo: #291609; --hand: #9b7551; --good: #4fd09b; --bad: #ff8076; color-scheme: dark;
 }
 
 * { box-sizing: border-box; }
@@ -45,7 +37,8 @@ body {
 }
 .app { max-width: 560px; margin: 0 auto; display: flex; flex-direction: column; gap: 20px; }
 h1, h2, p, ol { margin: 0; }
-h1, h2, .brand, .pts, .streak-n { font-family: var(--display); }
+h1, h2 { font-family: var(--display); }
+.pts, .streak-n, .count, .hand b { font-family: var(--display); }
 h1 { font-size: clamp(2rem, 9vw, 2.75rem); font-weight: 800; line-height: 1.02; letter-spacing: -0.02em; text-wrap: balance; }
 h2 { font-size: 1.125rem; font-weight: 600; }
 .small, small { font-size: 0.875rem; color: var(--muted); }
@@ -58,18 +51,15 @@ button:focus-visible, .seg input:focus-visible + label, summary:focus-visible { 
 .primary:active, .secondary:active { transform: translateY(1px); }
 
 .top { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 40px; }
-.brand { font-weight: 800; font-size: 1.25rem; letter-spacing: -0.01em; }
+.brand { display: block; width: 168px; line-height: 0; }
+.brand svg { width: 100%; height: auto; display: block; }
 #back:not([hidden]) + .brand { position: absolute; left: 50%; transform: translateX(-50%); }
 .top { position: relative; }
 
 main { display: flex; flex-direction: column; gap: 20px; }
 .hero { display: flex; flex-direction: column; gap: 12px; }
-.zig {
-  height: 10px; width: 120px;
-  background:
-    linear-gradient(135deg, var(--accent) 25%, transparent 25%) 0 0 / 20px 20px,
-    linear-gradient(225deg, var(--accent) 25%, transparent 25%) 0 0 / 20px 20px;
-}
+.weave { height: 24px; border-radius: 6px; overflow: hidden; line-height: 0; }
+.weave svg { width: 100%; height: 100%; display: block; }
 .lede { color: var(--muted); max-width: 46ch; }
 
 .daily {
@@ -123,7 +113,7 @@ main { display: flex; flex-direction: column; gap: 20px; }
 .seed { position: absolute; aspect-ratio: 1; border-radius: 50%; transform: translate(-50%, -50%); background: var(--seed-a); box-shadow: inset -1px -2px 0 rgba(0, 0, 0, 0.16); }
 .seed.s1 { background: var(--seed-b); }
 .seed.s2 { background: var(--seed-c); }
-.count { text-shadow: 0 1px 1px rgba(40, 20, 5, 0.6); font: 600 0.875rem/1 var(--display); font-variant-numeric: tabular-nums; opacity: 0.92; }
+.count { text-shadow: 0 1px 1px rgba(40, 20, 5, 0.6); font: 600 0.9375rem/1 var(--display); font-variant-numeric: tabular-nums; opacity: 0.92; }
 .pit.can .bowl { box-shadow: inset 0 5px 6px rgba(0, 0, 0, 0.5), 0 0 0 3px var(--seed-c), 0 0 0 5px rgba(40, 20, 5, 0.45); }
 .pit.can .count { opacity: 1; color: var(--seed-c); }
 .pit:not(.can) { cursor: default; }
@@ -135,7 +125,7 @@ main { display: flex; flex-direction: column; gap: 20px; }
 #fx { position: absolute; left: 0; top: 0; width: 0; height: 0; pointer-events: none; z-index: 20; }
 .hand { position: absolute; left: 0; top: 0; border-radius: 50%; background: var(--hand); box-shadow: 0 0 0 2px var(--seed-c), 0 10px 18px rgba(0, 0, 0, 0.35); will-change: transform; }
 .hand .seeds { position: absolute; inset: 0; }
-.hand b { position: absolute; right: -6px; top: -6px; min-width: 22px; height: 22px; padding: 0 5px; border-radius: 11px; background: var(--seed-c); color: var(--accent-ink); font: 800 0.8125rem/22px var(--display); text-align: center; font-variant-numeric: tabular-nums; }
+.hand b { position: absolute; right: -6px; top: -6px; min-width: 22px; height: 22px; padding: 0 5px; border-radius: 11px; background: var(--seed-c); color: var(--accent-ink); font: 700 0.875rem/22px var(--display); text-align: center; font-variant-numeric: tabular-nums; }
 .pts.bump { animation: bump 0.3s ease-out; }
 @keyframes bump { from { transform: scale(1.35); color: var(--accent); } to { transform: scale(1); } }
 @keyframes pulse { from { transform: scale(1.12); } to { transform: scale(1); } }
@@ -146,5 +136,25 @@ main { display: flex; flex-direction: column; gap: 20px; }
 .result h2 { font-size: 1.5rem; font-weight: 800; }
 .result-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 6px; }
 #shareText { width: 100%; font: 400 0.875rem/1.4 var(--body); border: 1px solid var(--line); border-radius: 12px; padding: 10px; background: var(--bg); color: var(--ink); resize: none; }
+
+
+
+/* Inlaid woven strip between the two rows of pits */
+.board { position: relative; }
+.inlay { position: absolute; left: 22px; right: 22px; top: 50%; height: 6px; margin-top: -4px; border-radius: 3px; overflow: hidden; opacity: 0.85; line-height: 0; pointer-events: none; }
+.inlay svg { width: 100%; height: 100%; display: block; }
+
+/* Opening screen */
+#intro { position: fixed; inset: 0; z-index: 50; background: var(--bg); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 28px; padding: 24px; border: 0; border-radius: 0; width: 100%; cursor: pointer; transition: opacity 0.35s; }
+#intro.out { opacity: 0; pointer-events: none; }
+#intro .map { width: min(58vw, 46vh, 300px); line-height: 0; }
+#intro .map svg { width: 100%; height: auto; }
+#intro .map rect { animation: px 0.18s ease-out backwards; }
+#intro .mark { width: min(78vw, 360px); line-height: 0; animation: rise 0.5s 1.75s ease-out backwards; }
+#intro .mark svg { width: 100%; height: auto; }
+#intro .skip { font: 600 0.875rem var(--body); color: var(--muted); animation: rise 0.4s 2.1s backwards; }
+@keyframes px { from { opacity: 0; transform: scale(0.2); } }
+@keyframes rise { from { opacity: 0; transform: translateY(10px); } }
+#intro .map rect { transform-box: fill-box; transform-origin: center; }
 
 @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }

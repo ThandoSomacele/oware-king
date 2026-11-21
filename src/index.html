@@ -1,20 +1,22 @@
-<title>Imbewu Oware</title>
+<title>Oware King</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Figtree:wght@400;600&display=swap">
 <style>
 /*CSS*/
 </style>
 
+<button id="intro" type="button" aria-label="Start" hidden><span class="map" id="introMap"></span><span class="mark" id="introMark"></span><span class="skip">Tap to start</span></button>
+
 <div class="app">
   <header class="top">
     <button id="back" class="ghost" type="button" hidden>Home</button>
-    <span class="brand">Imbewu</span>
+    <span class="brand" id="brand"></span>
     <button id="sound" class="ghost" type="button" aria-pressed="true">Sound on</button>
   </header>
 
   <main id="home">
     <section class="hero">
-      <div class="zig" aria-hidden="true"></div>
+      <div class="weave" id="weave" aria-hidden="true"></div>
       <h1>Sow. Capture. Reach 25.</h1>
       <p class="lede">Oware is the seed game played from Accra to Abidjan for hundreds of years. One tap sows your seeds around the board.</p>
     </section>
@@ -92,6 +94,9 @@
 
 <div id="fx" aria-hidden="true"></div>
 
+<script>
+/*BRAND*/
+</script>
 <script>
 /*ENGINE*/
 </script>

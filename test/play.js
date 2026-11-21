@@ -14,6 +14,8 @@ const path = require('node:path');
     await page.evaluate(() => { const st = window.setTimeout; window.setTimeout = (f, ms) => st(f, ms / 20); });
     await page.addStyleTag({ content: '*{animation-duration:1ms!important}' });
     await page.evaluate(() => { const a = Element.prototype.animate; Element.prototype.animate = function (k, o) { return a.call(this, k, { ...o, duration: o.duration / 20 }); }; });
+    await page.click('#intro');
+    await page.waitForSelector('#intro', { state: 'hidden' });
     await page.click('#playLocal');
     let moves = 0;
     while (await page.locator('#result').isHidden()) {

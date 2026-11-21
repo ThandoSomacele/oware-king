@@ -12,8 +12,9 @@
 
   // Saved on this device only. The game must still work when storage is blocked.
   const store = {
-    get(k, d) { try { const v = localStorage.getItem('imbewu.' + k); return v == null ? d : JSON.parse(v); } catch { return d; } },
-    set(k, v) { try { localStorage.setItem('imbewu.' + k, JSON.stringify(v)); } catch { /* ignore */ } },
+    get(k, d) { try { const v = localStorage.getItem('oware.' + k) ?? localStorage.getItem('imbewu.' + k); // 'imbewu.' is the old name
+      return v == null ? d : JSON.parse(v); } catch { return d; } },
+    set(k, v) { try { localStorage.setItem('oware.' + k, JSON.stringify(v)); } catch { /* ignore */ } },
   };
 
   const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -145,6 +146,10 @@
       boardEl.appendChild(b);
       pitEls[i] = b;
     }
+    const inlay = document.createElement('span');
+    inlay.className = 'inlay';
+    inlay.innerHTML = Brand.band('stripe', 6, 120);
+    boardEl.appendChild(inlay);
   }
 
   function seedsHTML(n, i) {
@@ -397,7 +402,7 @@
   }
 
   function share(rec) {
-    const text = `Imbewu daily challenge ${rec.last}\n${rec.solved ? 'Solved' : 'Missed'}: ${rec.gain} of ${puzzle.gain} seeds captured\nStreak: ${rec.streak} day${rec.streak === 1 ? '' : 's'}`;
+    const text = `${Brand.NAME} daily challenge ${rec.last}\n${rec.solved ? 'Solved' : 'Missed'}: ${rec.gain} of ${puzzle.gain} seeds captured\nStreak: ${rec.streak} day${rec.streak === 1 ? '' : 's'}`;
     const box = $('#shareText');
     const fallback = () => { box.value = text; box.hidden = false; box.focus(); box.select(); };
     try {
@@ -478,8 +483,25 @@
     show('home');
   }
 
+  // ---------- brand and opening screen ----------
+  $('#brand').innerHTML = Brand.logo(Brand.NAME);
+  $('#weave').innerHTML = Brand.band('blocks', 6, 96);
+  function intro() {
+    let seen = false;
+    try { seen = sessionStorage.getItem('oware.intro') === '1'; sessionStorage.setItem('oware.intro', '1'); } catch { /* show it */ }
+    if (seen) return;
+    const el = $('#intro');
+    $('#introMap').innerHTML = Brand.africaSVG();
+    $('#introMark').innerHTML = Brand.logo(Brand.NAME, { stacked: true });
+    el.hidden = false;
+    const close = () => { el.classList.add('out'); setTimeout(() => { el.hidden = true; }, 400); };
+    el.addEventListener('click', close);
+    setTimeout(close, reduced ? 1500 : 3200);
+  }
+
   // ---------- wiring ----------
   buildBoard();
+  intro();
   drawSound();
   drawHome();
   $('#sound').addEventListener('click', () => { soundOn = !soundOn; store.set('sound', soundOn); drawSound(); sfx.drop(); });

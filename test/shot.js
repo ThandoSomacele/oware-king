@@ -10,6 +10,10 @@ const out = process.argv[2];
   page.on('pageerror', (e) => errors.push(String(e)));
   page.on('console', (m) => { if (m.type() === 'error' && !/fonts|ERR_/.test(m.text())) errors.push(m.text()); });
   await page.goto('file://' + path.resolve(__dirname, '../dist/index.html'));
+  await page.waitForTimeout(2300);
+  await page.screenshot({ path: out + '/intro.png' });
+  await page.click('#intro');
+  await page.waitForTimeout(500);
   await page.screenshot({ path: out + '/home.png', fullPage: true });
 
   // Game against the computer: play 3 moves
