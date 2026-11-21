@@ -22,11 +22,16 @@ Run `npm install` once. Then:
 
 ## How online play works
 
-1. A player taps "Create game link". The server gives a six-character code, shown as a link ending in `#g-code`.
-2. The friend opens the link and types a name. Both pages connect to the same room.
+1. A player taps "Create game link". The server creates a room and gives a six-character code, shown as a link ending in `#g-code`.
+2. The friend opens the link, sees who invited them, types a name and joins. A link that was never created, or is more than a day old, is refused.
 3. Each tap is sent to the server. The server checks that it is that player's turn and that the move is legal, then adds it to the move list.
 4. Both pages get the move list and animate the new move.
-5. There are no accounts. A random ID saved on the device lets a player rejoin their seat after a reload.
-6. A room that nobody uses for one day is deleted.
+5. There are no accounts. A random ID saved on the device lets a player rejoin their seat after a reload, or from "Return to your game".
+6. A player's name is fixed when they first join, so names cannot be used to pass messages. There is no chat, only five preset reactions.
+7. The page checks the connection every 10 seconds and reconnects by itself.
+8. Limits protect the server: 4 connections per room, one per player, 25 messages per 10 seconds, one reaction per 0.8 seconds.
+9. A room that nobody uses for one day is deleted.
+
+`npm run test:online` (with `npm run dev` running) checks all of this: `test/server.test.js` acts as a hostile player, and `test/online.js` plays two full games in two browsers.
 
 Copyright (c) 2026 Thando Somacele. All rights reserved. See `LICENSE`.

@@ -33,11 +33,19 @@ const board = (page) => page.evaluate(() => ({
   const link = await a.inputValue('#inviteLink');
   console.log('link:', link);
 
+  // An invalid link is refused with a clear message
+  const bad = await mk('bad');
+  await bad.goto(URL0 + '#g-zzzzzz');
+  await bad.waitForSelector('#onlineError:not([hidden])', { timeout: 10000 }).catch(() => errors.push('invalid link was not refused'));
+  if (!(await bad.locator('#game').isHidden())) errors.push('invalid link opened a game');
+  await bad.context().close();
+
+  // The friend opens the link, sees who invited them, types a name and joins
   await b.goto(link);
-  await b.waitForSelector('#onlineCard:not([hidden])');
-  if (!/Join/.test(await b.textContent('#playOnline'))) errors.push('B does not see a Join button');
-  await b.fill('#nick', 'Kofi');
-  await b.click('#playOnline');
+  await b.waitForSelector('#join:not([hidden])', { timeout: 10000 });
+  if (!/Ama invited you/.test(await b.textContent('#joinTitle'))) errors.push('join screen does not name the host');
+  await b.fill('#joinNick', 'Kofi');
+  await b.click('#joinGo');
   await a.waitForSelector('#invite', { state: 'hidden' });
   if (!/Kofi/.test(await a.textContent('#nameTop'))) errors.push('A does not see Kofi');
   if (!/Ama/.test(await b.textContent('#nameTop'))) errors.push('B does not see Ama');
@@ -45,9 +53,9 @@ const board = (page) => page.evaluate(() => ({
   // A third player cannot join
   const c = await mk('C');
   await c.goto(link);
-  await c.waitForSelector('#onlineCard:not([hidden])');
-  await c.fill('#nick', 'Third');
-  await c.click('#playOnline');
+  await c.waitForSelector('#join:not([hidden])');
+  await c.fill('#joinNick', 'Third');
+  await c.click('#joinGo');
   await c.waitForSelector('#onlineError:not([hidden])', { timeout: 10000 }).catch(() => errors.push('third player was not refused'));
   await c.context().close();
 
@@ -90,6 +98,35 @@ const board = (page) => page.evaluate(() => ({
     return moves;
   };
 
+  // Leave and return: Home asks first, and the home screen offers the way back
+  await a.click('#back');
+  await a.waitForSelector('#leave:not([hidden])').catch(() => errors.push('Home did not ask before leaving'));
+  await a.click('#leaveNo');
+  if (await a.locator('#game').isHidden()) errors.push('"Keep playing" left the game');
+  await a.click('#back');
+  await a.click('#leaveYes');
+  await a.waitForSelector('#resume:not([hidden])').catch(() => errors.push('no "Return to your game" button'));
+  await b.waitForFunction(() => /offline/.test(document.querySelector('#status').textContent), null, { timeout: 10000 }).catch(() => errors.push('B was not told that A is offline'));
+  await a.click('#resume');
+  await a.waitForFunction(() => /Kofi/.test(nameTop.textContent), null, { timeout: 10000 }).catch(() => errors.push('A could not return to the game'));
+
+  // The same player in a second tab takes over; the first tab says so and can take the game back
+  const a2 = await a.context().newPage();
+  await a2.goto(link);
+  await a2.waitForFunction(() => /Kofi/.test(nameTop.textContent), null, { timeout: 15000 }).catch(() => errors.push('second tab did not join'));
+  await a.waitForSelector('#takeover:not([hidden])', { timeout: 10000 }).catch(() => errors.push('first tab was not told about the second tab'));
+  await a2.close();
+  await a.click('#takeover');
+  await a.waitForSelector('#takeover', { state: 'hidden', timeout: 10000 }).catch(() => errors.push('"Play here" did not take the game back'));
+
+  // Lost connection: the page says so, recovers, and the player can still move
+  await a.context().setOffline(true);
+  await a.evaluate(() => window.dispatchEvent(new Event('offline')));
+  await a.waitForFunction(() => /Reconnecting/.test(document.querySelector('#status').textContent), null, { timeout: 10000 }).catch(() => errors.push('A was not told the connection was lost'));
+  await a.context().setOffline(false);
+  await a.evaluate(() => window.dispatchEvent(new Event('online')));
+  await a.waitForFunction(() => !/Reconnecting|Connecting/.test(document.querySelector('#status').textContent), null, { timeout: 20000 }).catch(() => errors.push('A did not reconnect'));
+
   await playGame('game 1', 7);
   // rematch: both must agree
   await a.click('#resultMain');
@@ -100,6 +137,11 @@ const board = (page) => page.evaluate(() => ({
   await a.waitForTimeout(200);
   if (!(await b.locator('.pit.can').count())) errors.push('rematch: B (the other player) should start');
   await playGame('game 2', 0);
+
+  // After the game, one player leaves: the other is told and is not left waiting on a dead button
+  await b.click('#resultHome');
+  await a.waitForFunction(() => /has left/.test(resultText.textContent) && /Back to home/.test(resultMain.textContent), null, { timeout: 10000 }).catch(() => errors.push('A was not told that B left after the game'));
+  if (!(await b.locator('#resume').isHidden())) errors.push('a finished game is still offered as "Return to your game"');
 
   console.log(errors.length ? 'FAILED\n' + [...new Set(errors)].slice(0, 15).join('\n') : 'all online checks passed');
   await browser.close();

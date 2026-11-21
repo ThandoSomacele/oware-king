@@ -161,7 +161,12 @@ main { display: flex; flex-direction: column; gap: 20px; }
 .reacts { display: flex; justify-content: center; gap: 8px; flex-wrap: wrap; }
 .reacts button { width: 48px; height: 48px; font-size: 1.5rem; background: var(--surface); border-radius: 50%; }
 .reacts button:active { transform: scale(0.92); }
-.react-pop { position: absolute; left: 50%; top: 50%; font-size: 2.5rem; line-height: 1; pointer-events: none; animation: pop 1.6s ease-out forwards; z-index: 5; }
-@keyframes pop { 0% { transform: translate(-50%, -50%) scale(0.3); opacity: 0; } 15% { transform: translate(-50%, -60%) scale(1.25); opacity: 1; } 80% { transform: translate(-50%, -90%) scale(1); opacity: 1; } 100% { transform: translate(-50%, -120%) scale(1); opacity: 0; } }
+.reacts button:disabled { opacity: 0.45; }
+.extra { display: flex; justify-content: center; gap: 10px; flex-wrap: wrap; }
+.extra:not(:has(button:not([hidden]))) { display: none; }
+#join h1 { font-size: clamp(1.5rem, 7vw, 2rem); }
+/* A reaction pops up beside the score, clear of the player's name */
+.react-pop { position: absolute; right: 64px; top: 50%; font-size: 2.25rem; line-height: 1; pointer-events: none; animation: pop 1.6s ease-out forwards; z-index: 5; }
+@keyframes pop { 0% { transform: translateY(-50%) scale(0.3); opacity: 0; } 15% { transform: translateY(-60%) scale(1.25); opacity: 1; } 80% { transform: translateY(-90%) scale(1); opacity: 1; } 100% { transform: translateY(-120%) scale(1); opacity: 0; } }
 
 @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }

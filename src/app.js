@@ -22,7 +22,7 @@
 
   let mode = null, level = store.get('level', 'easy');
   let bottom = 0; // the player whose pits are on the bottom row
-  const net = { ws: null, code: null, seat: null, snap: null, applied: 0, game: -1, busy: false, waiting: false, down: false, retry: 0, pending: null };
+  const net = { ws: null, code: null, seat: null, snap: null, applied: 0, game: -1, busy: false, waiting: false, phase: 'idle', retry: 0, ticket: 0, pending: 0, beat: 0, pong: 0, sent: 0 };
   let state = null, view = [], locked = false, thinking = false, puzzle = null, gameId = 0, note = '';
 
   // ---------- sound ----------
@@ -219,7 +219,7 @@
   const humanTurn = () =>
     mode === 'ai' ? state.turn === 0
       : mode === 'daily' ? !puzzle.done
-        : mode === 'online' ? state.turn === net.seat && bothIn() && !net.waiting && !net.down
+        : mode === 'online' ? net.phase === 'live' && state.turn === net.seat && bothIn() && !net.waiting
           : true;
 
   function drawAll() {
@@ -237,13 +237,18 @@
       else if (mode === 'local') s = state.turn === 0 ? 'Player 1 to play' : 'Player 2 to play';
       else if (mode === 'online') {
         const r = rival();
-        if (net.down) s = 'Connection lost. Reconnecting';
+        if (net.phase === 'connecting') s = 'Connecting';
+        else if (net.phase === 'down') s = 'Connection lost. Reconnecting';
+        else if (net.phase === 'replaced') s = 'This game is now open in another tab or on another device.';
         else if (!r) s = 'Waiting for your friend to join';
         else if (state.turn === net.seat) s = locked ? 'Sowing your seeds' : 'Your turn. Tap a pit with a gold ring.';
         else s = r.online ? `${r.name} is playing` : `${r.name} is offline. The game waits for them.`;
       }
     }
     $('#status').textContent = s;
+    const on = mode === 'online' && !!net.snap, r = on ? rival() : null;
+    $('#free').hidden = !(on && net.phase === 'live' && net.seat === 0 && r && !r.online && !net.snap.moves.length);
+    $('#takeover').hidden = !(mode === 'online' && net.phase === 'replaced');
   }
 
   function pulse(i) {
@@ -261,7 +266,9 @@
     }
     if (mode === 'online') {
       net.waiting = true; // the move is shown when the server confirms it
-      netSend({ t: 'move', pit: i });
+      netSend({ t: 'move', pit: i, n: net.snap.moves.length });
+      clearTimeout(net.sent);
+      net.sent = setTimeout(dropped, 5000); // no answer: reconnect and unlock the board
       drawAll();
       return;
     }
@@ -439,6 +446,7 @@
   function show(name) {
     $('#home').hidden = name !== 'home';
     $('#game').hidden = name !== 'game';
+    $('#join').hidden = name !== 'join';
     $('#back').hidden = name === 'home';
     window.scrollTo(0, 0);
   }
@@ -455,8 +463,10 @@
     $('#result').hidden = true;
     $('#resultMain').disabled = false;
     $('#invite').hidden = true;
+    $('#leave').hidden = true;
     $('#reacts').hidden = mode !== 'online' || !rival();
     net.busy = false;
+    net.ticket++;
   }
 
   function startGame(m) {
@@ -503,11 +513,14 @@
     const wins = store.get('wins', {});
     const n = (wins.easy || 0) + (wins.medium || 0) + (wins.hard || 0);
     $('#winsNote').textContent = n ? `You have beaten the computer ${n} time${n === 1 ? '' : 's'}.` : 'First to capture 25 seeds wins.';
+    $('#resume').hidden = !store.get('room', null);
     const radio = document.querySelector(`input[name="level"][value="${level}"]`);
     if (radio) radio.checked = true;
   }
 
   function goHome() {
+    if (mode === 'online' && state && state.over) store.set('room', null); // a finished game is not offered again
+    if (invite) { invite = null; setHash(null); }
     leaveOnline();
     gameId++;
     fx.replaceChildren();
@@ -526,68 +539,117 @@
     }
     return v;
   })();
-  const hashCode = () => { const m = /^#g-([a-z2-9]{6})$/.exec(location.hash); return m ? m[1] : null; };
-  const myName = () => $('#nick').value.trim().slice(0, 16) || 'Player';
-  const netSend = (msg) => { try { net.ws.send(JSON.stringify(msg)); } catch { /* the reconnect loop will recover */ } };
+  // A game link that was opened but not joined yet. Kept here, not re-read from the address bar.
+  let invite = (() => { const m = /^#g-([a-z2-9]{6})$/.exec(location.hash); return m ? m[1] : null; })();
+  const myName = () => ($('#nick').value.trim() || $('#joinNick').value.trim()).slice(0, 16) || 'Player';
+  const setHash = (code) => { try { history.replaceState(null, '', code ? `#g-${code}` : location.pathname); } catch { /* keep the address */ } };
+  const netSend = (msg) => { try { if (net.ws && net.ws.readyState === 1) net.ws.send(JSON.stringify(msg)); } catch { /* the reconnect loop will recover */ } };
 
   function connect() {
+    clearTimeout(net.pending);
     const code = net.code;
+    if (!code) return;
+    if (net.phase !== 'down') net.phase = 'connecting';
     const ws = new WebSocket(`${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}/api/room/${code}/ws`);
     net.ws = ws;
-    ws.onopen = () => { net.retry = 0; netSend({ t: 'join', id: pid, name: myName() }); };
+    ws.onopen = () => netSend({ t: 'join', id: pid, name: myName() });
     ws.onmessage = (ev) => {
       if (net.ws !== ws) return;
+      clearTimeout(net.pong);
       let msg;
       try { msg = JSON.parse(ev.data); } catch { return; }
       if (msg.t === 'state') onSnapshot(msg);
       else if (msg.t === 'react') showReaction(msg.seat, msg.e);
-      else if (msg.t === 'full') { leaveOnline(); goHome(); onlineError('That game already has two players. Create a new one.'); }
+      else if (msg.t === 'full') failOnline('That game already has two players. Create a new one.');
+      else if (msg.t === 'gone') failOnline('This game link is not valid or has expired.');
+      else if (msg.t === 'replaced') { // the same player opened the game in another tab or on another device
+        net.ws = null;
+        net.phase = 'replaced';
+        net.waiting = false;
+        clearTimeout(net.sent);
+        drawAll();
+      }
     };
-    ws.onclose = () => {
-      if (net.ws !== ws || net.code !== code) return;
-      net.down = true;
-      if (state) drawAll();
-      net.pending = setTimeout(connect, Math.min(8000, 1000 * 2 ** net.retry++));
-    };
+    ws.onclose = () => { if (net.ws === ws && net.code === code) dropped(); };
+  }
+
+  // The connection is lost or silent: say so, unlock the board and keep trying.
+  function dropped() {
+    if (!net.code || net.phase === 'replaced') return;
+    const ws = net.ws;
+    net.ws = null;
+    try { if (ws) ws.close(); } catch { /* already closed */ }
+    net.phase = 'down';
+    net.waiting = false;
+    clearTimeout(net.sent);
+    clearTimeout(net.pong);
+    if (state) drawAll();
+    clearTimeout(net.pending);
+    net.pending = setTimeout(connect, Math.min(8000, 500 * 2 ** net.retry++));
+  }
+  // Asks the server for a sign of life. No answer in 5 seconds means the connection is dead.
+  function heartbeat() {
+    if (net.phase !== 'live') return;
+    netSend({ t: 'ping' });
+    clearTimeout(net.pong);
+    net.pong = setTimeout(dropped, 5000);
   }
 
   function joinOnline(code) {
     leaveOnline();
+    invite = null;
     store.set('nick', myName());
+    store.set('room', code);
     mode = 'online';
-    Object.assign(net, { code, seat: null, snap: null, applied: 0, game: -1, busy: false, waiting: false, down: false, retry: 0 });
-    try { history.replaceState(null, '', `#g-${code}`); } catch { location.hash = `g-${code}`; }
+    Object.assign(net, { code, seat: null, snap: null, applied: 0, game: -1, busy: false, waiting: false, phase: 'connecting', retry: 0 });
+    setHash(code);
     orient(0);
     resetBoard();
     state = E.start();
     view = state.pits.slice();
     $('#prompt').hidden = true;
-    $('#nameTop').textContent = 'Waiting for a friend';
+    $('#nameTop').textContent = 'Connecting';
     $('#nameBottom').textContent = 'You';
     drawAll();
     show('game');
+    net.beat = setInterval(heartbeat, 10000);
     connect();
   }
 
   function leaveOnline() {
     if (!net.code) return;
     clearTimeout(net.pending);
+    clearTimeout(net.pong);
+    clearTimeout(net.sent);
+    clearInterval(net.beat);
     const ws = net.ws;
     net.ws = null;
     net.code = null;
     net.snap = null;
-    try { ws.close(); } catch { /* already closed */ }
-    try { history.replaceState(null, '', location.pathname); } catch { /* keep the link */ }
+    net.phase = 'idle';
+    try { if (ws) ws.close(); } catch { /* already closed */ }
+    setHash(null);
     $('#invite').hidden = true;
     $('#reacts').hidden = true;
+    $('#leave').hidden = true;
     mode = null;
     orient(0);
   }
 
+  // The game cannot be joined: go home and say why.
+  function failOnline(text) {
+    store.set('room', null);
+    leaveOnline();
+    goHome();
+    onlineError(text);
+  }
+
   function onSnapshot(s) {
+    clearTimeout(net.sent);
     net.snap = s;
     net.seat = s.you;
-    net.down = false;
+    net.phase = 'live';
+    net.retry = 0;
     net.waiting = false;
     if (s.game !== net.game || s.moves.length < net.applied) { // first picture, a rematch, or we are out of step
       net.game = s.game;
@@ -601,6 +663,7 @@
     const r = rival();
     $('#nameBottom').textContent = `${s.players[s.you].name} (you)`;
     $('#nameTop').textContent = r ? r.name : 'Waiting for a friend';
+    if (!r && $('#invite').hidden) $('#inviteCopy').textContent = 'Copy link'; // a new invite has not been copied yet
     $('#invite').hidden = !!r;
     $('#reacts').hidden = !r;
     if (!r) $('#inviteLink').value = `${location.origin}${location.pathname}#g-${net.code}`;
@@ -624,14 +687,18 @@
   }
 
   function endOnline() {
-    const s = net.snap, r = rival(), w = state.winner, me = net.seat;
-    const title = w === -1 ? 'A draw' : w === me ? 'You win' : `${r ? r.name : 'Your friend'} wins`;
-    const tail = state.sweep ? ' No more moves were possible, so each player kept the seeds on their side.' : '';
-    const asked = s.rematch[me], theyAsked = s.rematch[1 - me];
+    const s = net.snap, r = rival(), w = state.winner, me = net.seat, them = r ? r.name : 'Your friend';
+    const title = w === -1 ? 'A draw' : w === me ? 'You win' : `${them} wins`;
+    const score = `Final score ${state.score[me]} to ${state.score[1 - me]}.${state.sweep ? ' No more moves were possible, so each player kept the seeds on their side.' : ''}`;
     const first = $('#result').hidden;
-    showResult(title, `Final score ${state.score[me]} to ${state.score[1 - me]}.${tail}${theyAsked && !asked ? ` ${r.name} wants a rematch.` : ''}`,
-      asked ? `Waiting for ${r ? r.name : 'your friend'}` : 'Rematch', () => netSend({ t: 'rematch' }));
-    $('#resultMain').disabled = asked;
+    if (!r || !r.online) {
+      showResult(title, `${score} ${them} has left the game.`, 'Back to home', goHome);
+      $('#resultMain').disabled = false;
+    } else {
+      const asked = s.rematch[me], theyAsked = s.rematch[1 - me];
+      showResult(title, `${score}${theyAsked && !asked ? ` ${them} wants a rematch.` : ''}`, asked ? `Waiting for ${them}` : 'Rematch', () => netSend({ t: 'rematch' }));
+      $('#resultMain').disabled = asked;
+    }
     if (first) sfx.tune(w === me || w === -1 ? [392, 494, 587, 784] : [392, 330, 262]);
   }
 
@@ -652,17 +719,27 @@
 
   async function createOnline() {
     onlineError('');
-    const pending = hashCode();
-    if (pending) return joinOnline(pending);
+    const ticket = ++net.ticket; // if the player starts something else while we wait, this reply is dropped
     $('#playOnline').disabled = true;
     try {
       const res = await fetch('/api/room', { method: 'POST' });
       if (!res.ok) throw new Error(String(res.status));
-      joinOnline((await res.json()).code);
+      const { code } = await res.json();
+      if (ticket === net.ticket && !$('#home').hidden) joinOnline(code);
     } catch {
-      onlineError('Could not reach the game server. Check your connection and try again.');
+      if (ticket === net.ticket) onlineError('Could not reach the game server. Check your connection and try again.');
     }
     $('#playOnline').disabled = false;
+  }
+
+  // Home during a live online game asks first, because leaving keeps the other player waiting.
+  function askHome() {
+    if (mode === 'online' && net.code && net.phase !== 'replaced' && state && !state.over) {
+      $('#leave').hidden = false;
+      $('#leave').scrollIntoView({ block: 'nearest' });
+      return;
+    }
+    goHome();
   }
 
   // The online card only appears where a game server answers (not in the offline preview).
@@ -672,11 +749,25 @@
       b.type = 'button';
       b.textContent = ch;
       b.setAttribute('aria-label', ['Thumbs up', 'Laughing', 'Surprised', 'Sad', 'Fire'][e]);
-      b.addEventListener('click', () => netSend({ t: 'react', e }));
+      b.addEventListener('click', () => {
+        netSend({ t: 'react', e });
+        const all = [...$('#reacts').children]; // a short pause shows that taps in quick succession are not sent
+        all.forEach((x) => { x.disabled = true; });
+        setTimeout(() => all.forEach((x) => { x.disabled = false; }), 900);
+      });
       $('#reacts').appendChild(b);
     });
-    $('#nick').value = store.get('nick', '');
+    $('#nick').value = $('#joinNick').value = store.get('nick', '');
+    $('#nick').addEventListener('input', () => { $('#joinNick').value = $('#nick').value; });
+    $('#joinNick').addEventListener('input', () => { $('#nick').value = $('#joinNick').value; });
     $('#playOnline').addEventListener('click', createOnline);
+    $('#resume').addEventListener('click', () => joinOnline(store.get('room', null)));
+    $('#joinGo').addEventListener('click', () => { if (invite) joinOnline(invite); else goHome(); });
+    $('#joinNo').addEventListener('click', goHome);
+    $('#leaveYes').addEventListener('click', goHome);
+    $('#leaveNo').addEventListener('click', () => { $('#leave').hidden = true; });
+    $('#free').addEventListener('click', () => netSend({ t: 'free' }));
+    $('#takeover').addEventListener('click', () => { net.phase = 'connecting'; drawAll(); connect(); });
     $('#inviteCopy').addEventListener('click', () => {
       const box = $('#inviteLink'), done = () => { $('#inviteCopy').textContent = 'Copied'; };
       const select = () => { box.focus(); box.select(); };
@@ -688,18 +779,32 @@
         navigator.share({ title: Brand.NAME, text: `Play ${Brand.NAME} with me`, url: $('#inviteLink').value }).catch(() => {});
       });
     }
+    window.addEventListener('online', () => { if (net.code && net.phase === 'down') { net.retry = 0; connect(); } });
+    window.addEventListener('offline', () => { if (net.code && net.ws) dropped(); });
+    document.addEventListener('visibilitychange', () => { if (!document.hidden) heartbeat(); }); // phones can cut a hidden page's connection
+
     try {
       if (!/^https?:$/.test(location.protocol)) return;
       const res = await fetch('/api/ping', { cache: 'no-store' });
       if (!res.ok || !(await res.json()).ok) return;
     } catch { return; }
     $('#onlineCard').hidden = false;
-    if (hashCode()) {
-      $('#onlineTitle').textContent = 'Your friend invited you to play';
-      $('#onlineNote').textContent = 'Type your name and join their game.';
-      $('#playOnline').textContent = 'Join the game';
-      if (store.get('nick', '')) joinOnline(hashCode()); // a returning player goes straight in
+    drawHome();
+    if (!invite) return;
+    // Opened from a game link: check the link, then go straight in or ask for a name first.
+    const code = invite;
+    let info = null;
+    try { info = await (await fetch(`/api/room/${code}`, { cache: 'no-store' })).json(); } catch { /* treated as not valid */ }
+    if (invite !== code || $('#home').hidden) return; // the player has moved on
+    if (!info || !info.ok) {
+      invite = null;
+      setHash(null);
+      onlineError('This game link is not valid or has expired. Ask your friend for a new one, or create a game.');
+      return;
     }
+    if (store.get('nick', '') || store.get('room', null) === code) return joinOnline(code); // a returning player goes straight in
+    $('#joinTitle').textContent = info.host ? `${info.host} invited you to play` : 'You are invited to play';
+    show('join');
   }
 
   // ---------- brand and opening screen ----------
@@ -784,7 +889,7 @@
   drawSound();
   drawHome();
   $('#sound').addEventListener('click', () => { soundOn = !soundOn; store.set('sound', soundOn); drawSound(); sfx.drop(); });
-  $('#back').addEventListener('click', goHome);
+  $('#back').addEventListener('click', askHome);
   $('#resultHome').addEventListener('click', goHome);
   $('#playDaily').addEventListener('click', startDaily);
   $('#playAi').addEventListener('click', () => startGame('ai'));
