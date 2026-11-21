@@ -1,6 +1,6 @@
 // Pixel art drawn in code, in the style of 16-bit console title screens:
 // a small fixed palette, ordered dithering, one light from the top left, dark outlines.
-// Everything is computed (no image files): the relief map of Africa, the bevelled logo, the woven borders.
+// Everything is computed (no image files): the relief map of Africa, the bevelled logo, the seed borders.
 const Pixel = (() => {
   const hex = (h) => [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16)];
   const PAL = [
@@ -183,16 +183,10 @@ const Pixel = (() => {
     [...text].forEach((ch, n) => (TINY[ch] || []).forEach((row, y) => [...row].forEach((p, x) => { if (p === '#') put(b, ox + n * 4 + x, oy + y, c); })));
   }
 
-  // Woven border: each block is lit like a raised thread.
-  const WEAVE = ['gg..rr..gg..nn..', 'gg..rr..gg..nn..', '..nn..gg..rr..gg', '..nn..gg..rr..gg'];
-  const THREAD = { g: hex('#f2b01e'), n: hex('#2f9a58'), r: hex('#d2532f'), '.': hex('#161435') };
-  function weave(b, y0, cell, rows = WEAVE) {
-    for (let y = 0; y < rows.length * cell; y++) for (let x = 0; x < b.w; x++) {
-      const k = rows[Math.floor(y / cell)][Math.floor(x / cell) % rows[0].length], c = THREAD[k];
-      const ix = x % cell, iy = y % cell;
-      const s = k === '.' ? 1 : ix === 0 || iy === 0 ? 1.28 : ix === cell - 1 || iy === cell - 1 ? 0.62 : 1;
-      put(b, x, y0 + y, mul(c, s));
-    }
+  // A row of Oware seeds, each one a small lit ball.
+  const SEEDS = ['#f2b01e', '#fdf0dc', '#2f9a58', '#f2b01e', '#d2532f', '#c9b99c'].map(hex);
+  function seedRow(b, cy, r, step, x0 = Math.floor(step / 2)) {
+    for (let x = x0, n = 0; x < b.w; x += step, n++) sphere(b, x, cy, r, SEEDS[n % SEEDS.length]);
   }
 
   // ---------- pieces ----------
@@ -224,11 +218,12 @@ const Pixel = (() => {
       if (at(land.D, x - 4, y - 6) > 0) c = mul(c, 0.45);
       const surf = at(land.D, x, y);
       if (surf < 0 && surf > -3.2) c = mix(c, hex('#5a58b8'), 0.55 * (1 + surf / 3.2));
+      if (y < 13 || y >= H - 13) c = mul(c, 0.5); // a darker band for the seed borders
       put(bg, x, y, c);
       if (hash(x * 1.7, y * 2.3) > 0.9925 && g < 0.35 && y > 16 && y < 150) stars.push([x, y]);
     }
-    weave(bg, 0, 3);
-    weave(bg, H - 12, 3);
+    seedRow(bg, 6, 4, 10);
+    seedRow(bg, H - 7, 4, 10);
 
     // The continent: lit relief, coloured by climate, with a dark coast line.
     const map = buf(W, H);
@@ -246,8 +241,8 @@ const Pixel = (() => {
     const logo = buf(W, 96);
     drawWord(logo, 'OWARE', 12, 2, 5, 3, RAMPS.gold, hex('#2f9a58'));
     drawWord(logo, 'KING', 26, 46, 5, 3, RAMPS.cream, hex('#d2532f'));
-    const stripe = buf(112, 4);
-    weave(stripe, 0, 2, ['ggnnggrrgg..ggrr', 'ggnnggrrgg..ggrr']);
+    const stripe = buf(112, 7);
+    seedRow(stripe, 3, 2, 8);
     const tap = buf(48, 5);
     tiny(tap, 'TAP TO START', 0, 0, hex('#fdf0dc'));
 
@@ -301,7 +296,7 @@ const Pixel = (() => {
     };
     if (t > 1100) ctx.drawImage(T.logo, 0, 0, T.W, 44, 0, 150 + drop(1100), T.W, 44);
     if (t > 1450) ctx.drawImage(T.logo, 0, 44, T.W, 52, 0, 194 + drop(1450), T.W, 52);
-    if (t > 1900) ctx.drawImage(T.stripe, 24, 246);
+    if (t > 1900) ctx.drawImage(T.stripe, 24, 244);
     if (t > 2200 && (!Number.isFinite(t) || Math.floor(t / 520) % 2 === 0)) ctx.drawImage(T.tap, 57, 258);
   }
 

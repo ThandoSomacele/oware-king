@@ -488,7 +488,7 @@
   headerLogo.setAttribute('role', 'img');
   headerLogo.setAttribute('aria-label', Brand.NAME);
   $('#brand').appendChild(headerLogo);
-  $('#weave').innerHTML = Brand.band('blocks', 6, 96);
+  $('#weave').innerHTML = Brand.seedBand();
   function intro() {
     let seen = false;
     try { seen = sessionStorage.getItem('oware.intro') === '1'; sessionStorage.setItem('oware.intro', '1'); } catch { /* show it */ }

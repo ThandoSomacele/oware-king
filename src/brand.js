@@ -79,6 +79,17 @@ const Brand = (() => {
     return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${cols * px} ${h}" preserveAspectRatio="xMinYMid slice" shape-rendering="crispEdges">${pattern(kind, px, cols * px)}</svg>`;
   }
 
+  // A row of seeds for page bands: round, lit from the top left, never square blocks.
+  function seedBand(count = 40, r = 9) {
+    const cols = [C.gold, C.cream, C.green, C.gold, C.red, '#c9b99c'], step = r * 2 + 6;
+    let out = '';
+    for (let n = 0; n < count; n++) {
+      const x = step / 2 + n * step, y = r + 3;
+      out += `<circle cx="${x}" cy="${y}" r="${r}" fill="${cols[n % cols.length]}"/><circle cx="${x + r * 0.2}" cy="${y + r * 0.25}" r="${r}" fill="none" stroke="rgba(0,0,0,.28)" stroke-width="${r * 0.35}" clip-path="circle(${r}px at ${x}px ${y}px)"/><circle cx="${x - r * 0.35}" cy="${y - r * 0.38}" r="${r * 0.28}" fill="rgba(255,255,255,.75)"/>`;
+    }
+    return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${count * step} ${r * 2 + 6}" preserveAspectRatio="xMinYMid slice">${out}</svg>`;
+  }
+
   // App icon: a block crown above a pit of seeds.
   function icon(size = 96) {
     const crown = ['#.#.#', '#####', '#####'];
@@ -94,7 +105,7 @@ const Brand = (() => {
 </svg>`;
   }
 
-  return { NAME, C, logo, band, icon, TILES };
+  return { NAME, C, logo, band, seedBand, icon, TILES };
 })();
 
 if (typeof module !== 'undefined') module.exports = Brand;
