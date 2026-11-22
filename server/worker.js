@@ -3,6 +3,7 @@
 // The server replays the moves with the same rules engine as the game page, so a player cannot cheat by editing their page.
 import { DurableObject } from 'cloudflare:workers';
 import Engine from '../src/engine.js';
+import page from '../dist/index.html'; // the whole game page, built by build.mjs and bundled as text
 
 const ALPHABET = 'abcdefghjkmnpqrstuvwxyz23456789'; // no look-alike letters or digits
 const REACTIONS = 5;
@@ -35,6 +36,16 @@ export default {
       if (!room[2]) return request.method === 'GET' ? json(await stub.info()) : json({ error: 'Not found' }, 404);
       if (request.headers.get('Upgrade') !== 'websocket') return json({ error: 'Expected a WebSocket' }, 426);
       return stub.fetch(request);
+    }
+    if (request.method === 'GET' && (url.pathname === '/' || url.pathname === '/index.html')) {
+      return new Response(page, {
+        headers: {
+          'content-type': 'text/html; charset=utf-8',
+          'cache-control': 'no-cache', // players always get the newest version; it is one small file
+          'x-content-type-options': 'nosniff',
+          'referrer-policy': 'no-referrer', // game links are never passed on to other sites
+        },
+      });
     }
     return json({ error: 'Not found' }, 404);
   },

@@ -2,6 +2,8 @@
 
 Oware, the West African sowing game, as one small web page that runs on phones, tablets and PCs.
 
+**Live game:** https://oware-king.oware-king.workers.dev
+
 - `src/engine.js`: the rules, the computer player and the daily puzzle. No screen code. The game server uses the same file.
 - `src/pixel.js`: the pixel-art title screen and logo, drawn in code.
 - `src/brand.js`: the app icon and seed bands, drawn in code.
@@ -18,7 +20,8 @@ Run `npm install` once. Then:
 - `npm run dev`: builds, then runs the page and game server on your computer at http://127.0.0.1:8787
 - `npm test`: checks the rules and plays two full games in a browser.
 - `npm run test:online`: with `npm run dev` running in another window, two browsers play two online games by link.
-- `npm run deploy`: builds and publishes to Cloudflare. Needs a Cloudflare account.
+- `npm run deploy`: builds and publishes to Cloudflare. It needs a Cloudflare API token with the "Edit Cloudflare Workers" permission, given as the `CLOUDFLARE_API_TOKEN` setting. Never save the token in this repository.
+- The game page is bundled into the server code (`server/worker.js` imports `dist/index.html`), so one upload publishes both.
 
 ## How online play works
 

@@ -1,9 +1,9 @@
 {
-  // Cloudflare settings: the game page is served from dist/, the game server is server/worker.js.
+  // Cloudflare settings. server/worker.js serves the game page (bundled from dist/index.html) and runs the game rooms.
   "name": "oware-king",
   "main": "server/worker.js",
   "compatibility_date": "2025-06-01",
-  "assets": { "directory": "./dist" },
+  "rules": [{ "type": "Text", "globs": ["**/*.html"], "fallthrough": true }],
   "durable_objects": { "bindings": [{ "name": "ROOMS", "class_name": "Room" }] },
   "migrations": [{ "tag": "v1", "new_sqlite_classes": ["Room"] }]
 }
