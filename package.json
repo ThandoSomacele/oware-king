@@ -11,7 +11,7 @@
     "test:online": "node test/server.test.js && node test/online.js",
     "icons": "node build.mjs && node scripts/make-icons.js && node build.mjs",
     "tv": "node build.mjs && ares-package dist-tv -o dist-ipk",
-    "test:tv": "OWARE_SERVER=http://127.0.0.1:8787 node build.mjs && node test/tv.js; node build.mjs",
+    "test:tv": "OWARE_SERVER=http://127.0.0.1:8787 node build.mjs && node test/tv.js && node test/tv-size.js; node build.mjs",
     "store": "OWARE_SERVER=http://127.0.0.1:8787 node build.mjs && node scripts/make-store.js; node build.mjs"
   },
   "devDependencies": {

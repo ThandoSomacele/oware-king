@@ -32,7 +32,8 @@ writeFileSync(at('./dist/index.html'), wrap(page, webHead));
 writeFileSync(at('./dist-artifact/index.html'), page);
 
 // TV: name the server, switch on the remote-control layout, and rewrite the code for old TV browser engines (webOS 4 = Chrome 53).
-const tvConfig = `const Config = { SERVER: '${LIVE}', TV: true };`;
+const tvVersion = JSON.parse(readFileSync(at('./platforms/webos/appinfo.json'), 'utf8')).version;
+const tvConfig = `const Config = { SERVER: '${LIVE}', TV: true, VERSION: '${tvVersion}' };`;
 const tvPage = assemble(tvConfig).replace(/<script>([\s\S]*?)<\/script>/g, (_, code) =>
   `<script>${transformSync(code, { target: 'chrome53', charset: 'utf8' }).code}</script>`);
 writeFileSync(at('./dist-tv/index.html'), wrap(tvPage));

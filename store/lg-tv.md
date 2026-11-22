@@ -14,6 +14,7 @@ You need the same setup that you use for Photo Frame: the TV in Developer Mode, 
 4. Start the relay, as for Photo Frame.
 5. Run `sh platforms/webos/deploy.sh`.
 6. Wait for the app to open on the TV.
+7. Check the version at the bottom of the home screen. It must match the number in `platforms/webos/appinfo.json`.
 
 The script builds the app, makes the package in `dist-ipk/`, installs it and starts it.
 
@@ -39,7 +40,7 @@ Do this after Part 2 is good.
 
 1. Sign in to LG Seller Lounge with the Object91 account.
 2. Start a new app.
-3. Upload `dist-ipk/com.object91.owareking_1.0.3_all.ipk`.
+3. Upload `dist-ipk/com.object91.owareking_1.0.4_all.ipk`.
 4. Enter the text from `listing.md`.
 5. Upload `../assets/store-icon-512.png` as the app icon. Tile colour: `#14110E`.
 6. Upload the five pictures from `screenshots/tv-1920x1080/`.

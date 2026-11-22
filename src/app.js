@@ -1168,6 +1168,7 @@
   }
 
   // ---------- wiring ----------
+  if (Config.VERSION) $('#version').textContent = ` · Version ${Config.VERSION}`; // shows which build is installed
   buildBoard();
   fit();
   intro();
