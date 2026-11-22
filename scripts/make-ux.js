@@ -4,7 +4,7 @@ const { chromium } = require('playwright');
 const fs = require('node:fs'), path = require('node:path');
 const shots = path.resolve(__dirname, '../store/screenshots/tv-1920x1080');
 const img = (f) => 'data:image/png;base64,' + fs.readFileSync(path.join(shots, f)).toString('base64');
-const APP = 'Oware King  ·  com.object91.owareking  ·  v1.0.5  ·  Object91';
+const APP = 'Oware King  ·  com.object91.owareking  ·  v1.0.6  ·  Object91';
 
 const SCREENS = [
   ['1. Title screen', '1-title.png', [
@@ -17,7 +17,8 @@ const SCREENS = [
     ['Arrow keys', 'Move the gold frame to the next button in that direction. The page scrolls to keep the frame in view.'],
     ['OK', 'Selects the framed button.'],
     ['Play today\'s challenge', 'Opens one position. The player gets one try to find the best pit.'],
-    ['Play a friend online', 'OK on the name field opens the TV keyboard. "Create game link" opens the scan-to-join screen.'],
+    ['Play a friend online', 'In the right-hand column. Moving over the name field does not open the TV keyboard; OK on it does. "Create game link" opens the invite screen.'],
+    ['How to play', 'OK opens the rules. Down scrolls to read them, Up returns to the top.'],
     ['Play the computer', 'Easy, Medium or Hard, then "Start game".'],
     ['Two players, one device', 'Two people take turns with the same remote.'],
     ['Back', 'Closes the app.'],

@@ -40,7 +40,7 @@ Do this after Part 2 is good.
 
 1. Sign in to LG Seller Lounge with the Object91 account.
 2. Start a new app.
-3. Upload `dist-ipk/com.object91.owareking_1.0.5_all.ipk`.
+3. Upload `dist-ipk/com.object91.owareking_1.0.6_all.ipk`.
 4. Enter the text from `listing.md`.
 5. Upload `../assets/store-icon-512.png` as the app icon. Tile colour: `#14110E`.
 6. Upload the five pictures from `screenshots/tv-1920x1080/`.

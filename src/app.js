@@ -531,6 +531,7 @@
     $('#game').hidden = name !== 'game';
     $('#join').hidden = name !== 'join';
     $('#send').hidden = name !== 'send';
+    document.querySelector('.app').classList.toggle('wide', isTV && name === 'home'); // TV home screen uses two columns
     $('#back').hidden = name === 'home';
     sizeBowls();
     fit();
@@ -961,7 +962,18 @@
       if (!code) { drawHome(); notify('That game is no longer saved on this device.'); return; }
       joinOnline(code);
     });
-    const onEnter = (input, button) => $(input).addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); $(button).click(); } });
+    const onEnter = (input, button) => $(input).addEventListener('keydown', (e) => { if (e.key === 'Enter' && !$(input).readOnly) { e.preventDefault(); $(button).click(); } });
+    // On a TV, a text box opens the on-screen keyboard as soon as it is selected. So the name boxes stay locked
+    // while the selection passes over them, and open only when the player presses OK on one.
+    if (isTV) {
+      for (const id of ['#nick', '#joinNick']) {
+        const el = $(id), open = () => { el.blur(); el.readOnly = false; el.focus(); };
+        el.readOnly = true;
+        el.addEventListener('keydown', (e) => { if (e.keyCode === 13 && el.readOnly) { e.preventDefault(); e.stopImmediatePropagation(); open(); } });
+        el.addEventListener('click', () => { if (el.readOnly) open(); });
+        el.addEventListener('blur', () => { el.readOnly = true; });
+      }
+    }
     onEnter('#nick', '#playOnline');
     onEnter('#joinNick', '#joinGo');
     $('#joinGo').addEventListener('click', () => { if (invite) joinOnline(invite); else goHome(); });
@@ -1015,7 +1027,7 @@
     if (isTV) {
       $('#inviteTitle').textContent = 'Invite a friend';
       $('#inviteHint').textContent = 'Scan this code with your phone, then send the link to a friend on WhatsApp. They play on their phone, from anywhere.';
-      $('#onlineNote').textContent = 'Create a game and a friend joins by scanning a code with their phone.';
+      $('#onlineNote').textContent = 'Create a game, scan the code with your phone, and send the link to a friend.';
     }
     // Installed like an app: works offline for the modes that need no server.
     if (!Config.SERVER && 'serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('/sw.js').catch(() => {});
@@ -1034,7 +1046,8 @@
       for (const c of game.children) if (c.offsetHeight) { sum += c.offsetHeight; n++; }
       need = Math.max(560, 104 + sum + 12 * Math.max(0, n - 1) + 24);
     }
-    let z = w >= 700 ? Math.min((w - 32) / 560, h / need) : 1;
+    const base = appEl.classList.contains('wide') ? 1150 : 560; // the game's own width (the TV home screen keeps a 5% margin, inside the TV's safe area)
+    let z = w >= 700 ? Math.min((w - 32) / base, h / need) : 1;
     z = Math.round(Math.max(1, Math.min(3.5, z)) * 100) / 100;
     appEl.style.transform = z === 1 ? '' : `scale(${z})`;
     document.documentElement.style.setProperty('--avail', `${Math.floor(h / z)}px`); // the screen height in the game's own units
@@ -1111,12 +1124,13 @@
   }
   document.addEventListener('keydown', (e) => {
     if (!$('#intro').hidden) return; // the title screen has its own keys
-    const k = e.keyCode, t = document.activeElement, typing = t && t.tagName === 'INPUT' && t.type === 'text';
+    const k = e.keyCode, t = document.activeElement, typing = t && t.tagName === 'INPUT' && t.type === 'text' && !t.readOnly;
     if (k === 461 || (k === 27 && !typing)) { e.preventDefault(); goBack(); return; }
     if (k === 13 && t && t.type === 'radio') { t.click(); return; }
     if (k < 37 || k > 40 || e.altKey || e.ctrlKey || e.metaKey) return;
     if (typing && (k === 37 || k === 39)) return; // left and right move the text cursor
-    const moved = step(k);
+    let moved = step(k);
+    if (!moved && isTV && (k === 38 || k === 40)) { window.scrollBy(0, (k === 40 ? 1 : -1) * Math.round(innerHeight * 0.4)); moved = true; } // read text below the last button
     if (moved || (t && t.type === 'radio')) e.preventDefault(); // arrows never change a level choice by themselves
   });
 
@@ -1209,6 +1223,28 @@
 
   // ---------- wiring ----------
   if (Config.VERSION) $('#version').textContent = ` · Version ${Config.VERSION}`; // shows which build is installed
+  // TV home screen: play options on the left, "Play a friend online" and the rules on the right.
+  if (isTV) {
+    const lede = document.querySelector('.hero .lede');
+    if (lede) lede.textContent = lede.textContent.replace('One tap sows', 'One press sows');
+    const home = $('#home'), left = document.createElement('div'), right = document.createElement('div');
+    left.className = 'col left';
+    right.className = 'col right';
+    for (const c of [...home.children]) (c.id === 'onlineCard' || c.classList.contains('rules') || c.classList.contains('foot') ? right : left).appendChild(c);
+    home.appendChild(left);
+    home.appendChild(right);
+    document.querySelector('.app').classList.add('wide');
+  }
+  // Opening "How to play" brings the text into view.
+  const rules = document.querySelector('.rules');
+  rules.addEventListener('toggle', () => {
+    if (!rules.open) return;
+    setTimeout(() => {
+      fit();
+      const r = rules.getBoundingClientRect();
+      if (r.bottom > innerHeight - 24) window.scrollBy(0, Math.min(r.bottom - innerHeight + 24, r.top - 24));
+    }, 60);
+  });
   buildBoard();
   fit();
   intro();

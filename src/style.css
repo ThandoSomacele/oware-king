@@ -219,4 +219,15 @@ main { display: flex; flex-direction: column; gap: 20px; }
 .ghost.inline { padding: 0; font-size: inherit; color: var(--accent); text-decoration: underline; }
 .tv #inviteText { font-size: 1.125rem; text-align: center; }
 
+/* TV home screen: two columns, laid out with inline blocks so older TV browsers draw it the same. */
+.tv .app.wide { max-width: 1040px; }
+.tv #home { display: block; }
+.tv #home .col { display: inline-block; vertical-align: top; }
+.tv #home .col.left { width: 55%; margin-right: 5%; }
+.tv #home .col.right { width: 40%; }
+.tv #home .col > * + * { margin-top: 18px; }
+.tv #home .modes { display: block; }
+.tv #home .modes > * + * { margin-top: 12px; }
+.tv #home .col.right .online { margin-top: 0; }
+
 @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
