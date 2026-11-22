@@ -2,7 +2,7 @@
 
 The Windows app opens the live game in its own window. PWABuilder makes the package.
 
-Before you start: settle the web address (`domain.md`). You need a Microsoft Partner Center developer account.
+The game's web address is `https://owareking.object91.co.za`. You need a Microsoft Partner Center developer account.
 
 ## Part 1: Reserve the name
 
@@ -14,7 +14,7 @@ Before you start: settle the web address (`domain.md`). You need a Microsoft Par
 
 ## Part 2: Make the package
 
-1. Open https://www.pwabuilder.com and enter the game's web address.
+1. Open https://www.pwabuilder.com and enter `https://owareking.object91.co.za`.
 2. Select "Package for stores", then "Windows".
 3. Paste the three values from Part 1.
 4. Set version to `1.0.0`.

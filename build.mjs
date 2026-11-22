@@ -8,7 +8,7 @@ import { transformSync } from 'esbuild';
 // The live server. The TV app is a packaged page, so it must name the server in full.
 // Change this one line when the game moves to its own web address, then rebuild.
 // (OWARE_SERVER overrides it for local tests of the TV build.)
-export const LIVE = process.env.OWARE_SERVER || 'https://oware-king.oware-king.workers.dev';
+export const LIVE = process.env.OWARE_SERVER || 'https://owareking.object91.co.za';
 
 const at = (f) => new URL(f, import.meta.url);
 const read = (f) => readFileSync(at('./src/' + f), 'utf8');

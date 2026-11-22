@@ -11,7 +11,7 @@ Everything here was prepared in code. The steps that need your accounts, your TV
 | Android (Google Play) | Installable web app, icons, screenshots, banner, listing text, privacy policy. | Create the Android package with PWABuilder, send me two fingerprints, upload to Play Console. | `google-play.md` |
 | Windows (Microsoft Store) | Installable web app, icons, screenshots, listing text. | Reserve the name in Partner Center, create the package with PWABuilder, upload. | `microsoft-store.md` |
 | iPhone and iPad (App Store) | Installable web app, icons, screenshots, listing text. | Create the Xcode project with PWABuilder, build and upload from your Mac. | `apple-app-store.md` |
-| Web address | The game runs at `oware-king.oware-king.workers.dev`. | Decide how to connect `owareking.object91.co.za`. Do this BEFORE the Android, Windows and iOS steps. | `domain.md` |
+| Web address | Done. The game runs at `https://owareking.object91.co.za`. | Nothing. Use this address in every store step. | `domain.md` |
 
 ## Files
 
@@ -26,7 +26,7 @@ To make the screenshots again after a design change, see the first lines of `../
 ## Order of work
 
 1. Test the TV app on your own TV (`lg-tv.md`, part 1). It does not depend on anything else.
-2. Settle the web address (`domain.md`).
+2. The web address is settled: `https://owareking.object91.co.za`.
 3. Do Android, then Windows, then iOS. Each one wraps the live web address, so the address must be final first.
 4. Submit the TV app to LG after you are happy with it on your TV.
 

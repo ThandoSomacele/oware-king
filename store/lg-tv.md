@@ -56,7 +56,7 @@ Do this after Part 2 is good.
 
 ## Good to know
 
-- The TV app talks to the game server named in `build.mjs` (`LIVE`). If the web address changes, change that line, raise the version in `platforms/webos/appinfo.json`, and build again.
+- The TV app talks to the game server named in `build.mjs` (`LIVE`), now `https://owareking.object91.co.za`. If the web address changes, change that line, raise the version in `platforms/webos/appinfo.json`, and build again.
 - The app supports webOS 4 and newer (TVs from 2018). The code is converted for the old browser in those TVs.
 - Every mode except online play works with no internet connection. With no connection the app uses the TV's own font, so the lettering looks a little different.
 - A tiny silent video (`keepawake.mp4`, the same file as in Photo Frame) plays during a game to stop the TV screen saver.

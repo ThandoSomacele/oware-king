@@ -2,7 +2,7 @@
 
 Oware, the West African sowing game, as one small web page that runs on phones, tablets and PCs.
 
-**Live game:** https://oware-king.oware-king.workers.dev
+**Live game:** https://owareking.object91.co.za (the older address https://oware-king.oware-king.workers.dev also works)
 
 - `src/engine.js`: the rules, the computer player and the daily puzzle. No screen code. The game server uses the same file.
 - `src/pixel.js`: the pixel-art title screen and logo, drawn in code.

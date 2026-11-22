@@ -11,7 +11,7 @@ Use the same text on every store. Keep it in step with the game.
 - Languages: English
 - Website: https://www.object91.co.za
 - Support email: thando@object91.co.za
-- Privacy policy: https://oware-king.oware-king.workers.dev/privacy (change to the final web address, see `domain.md`)
+- Privacy policy: https://owareking.object91.co.za/privacy
 
 ## Short description (80 characters or fewer)
 The West African seed game. Play a friend online, the computer, or daily.

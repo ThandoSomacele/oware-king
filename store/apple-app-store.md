@@ -2,13 +2,13 @@
 
 Apple needs a Mac with Xcode and an Apple Developer Program membership (99 US dollars a year). The build must run on your Mac. I cannot do it from here.
 
-Before you start: settle the web address (`domain.md`).
+The game's web address is `https://owareking.object91.co.za`.
 
 Warning: Apple sometimes rejects apps that are only a website in a wrapper (guideline 4.2, "minimum functionality"). Oware King is a full game with offline modes, which helps, but approval is not certain. Until then, iPhone players can install it from Safari: open the game, select Share, then "Add to Home Screen".
 
 ## Part 1: Make the Xcode project
 
-1. Open https://www.pwabuilder.com and enter the game's web address.
+1. Open https://www.pwabuilder.com and enter `https://owareking.object91.co.za`.
 2. Select "Package for stores", then "iOS".
 3. Set Bundle ID to `com.object91.owareking`. Set App name to `Oware King`.
 4. Select "Download" and unzip the file on your Mac.

@@ -2,14 +2,14 @@
 
 The Android app is a thin wrapper that opens the live game full screen (a "Trusted Web Activity"). PWABuilder, a free Microsoft website, makes the package from the live web address.
 
-Before you start: settle the web address (`domain.md`). You need a Google Play developer account (once-off fee, 25 US dollars).
+The game's web address is `https://owareking.object91.co.za`. You need a Google Play developer account (once-off fee, 25 US dollars).
 
 Check the account type first: Play Console, Settings, Developer account, Account details. It is either Personal or Organisation. Part 3 differs for the two.
 
 ## Part 1: Make the package
 
 1. Open https://www.pwabuilder.com in a browser.
-2. Enter the game's web address and select "Start".
+2. Enter `https://owareking.object91.co.za` and select "Start".
 3. Wait for the report. It must show a manifest and a service worker. If it shows a problem, send me the text.
 4. Select "Package for stores", then "Android".
 5. Set Package ID to `com.object91.owareking`.
