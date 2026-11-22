@@ -15,8 +15,9 @@
 - Show it at whole-number pixel sizes only. Do not stretch it, smooth it, or set the name in an ordinary font as a substitute.
 
 ## App icon
-- Drawn by `Brand.icon()`: a gold block crown above a wooden pit with three seeds (cream, gold, green). It is an early flat version and should be redrawn in the pixel style before store launch.
+- Drawn by `Pixel.icon()` in `src/pixel.js`, 64 x 64 pixels: a gold crown above a carved wooden pit with three seeds (cream, gold, green), on the warm black ground.
 - Keep the crown plain. Do not add a face, jewels or a cartoon style, so it stays clear of other "King" games.
+- Enlarge it by whole numbers only (128, 192, 256, 512), with hard pixel edges. Never smooth or stretch it.
 
 ## Colours
 | Name | Hex | Use |

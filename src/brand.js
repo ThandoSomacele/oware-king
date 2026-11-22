@@ -1,4 +1,4 @@
-// Brand drawing code: logo letters, app icon, strip-weave patterns and the pixel map of Africa.
+// Brand drawing code: the name, colours and seed bands. The logo, title screen and app icon are in pixel.js.
 // Everything is drawn from the small grids below, so there are no image or font files to copy.
 const Brand = (() => {
   const NAME = 'Oware King';
@@ -90,22 +90,7 @@ const Brand = (() => {
     return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${count * step} ${r * 2 + 6}" preserveAspectRatio="xMinYMid slice">${out}</svg>`;
   }
 
-  // App icon: a block crown above a pit of seeds.
-  function icon(size = 96) {
-    const crown = ['#.#.#', '#####', '#####'];
-    let c = '';
-    crown.forEach((row, ry) => [...row].forEach((ch, cx) => {
-      if (ch === '#') c += `<rect x="${23 + cx * 10.2}" y="${12 + ry * 9}" width="9.4" height="8.2" rx="1.6" fill="${C.gold}"/>`;
-    }));
-    return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96" width="${size}" height="${size}" role="img" aria-label="App icon">
-<rect width="96" height="96" rx="21" fill="${C.black}"/>${c}
-<rect x="12" y="42" width="72" height="44" rx="12" fill="${C.wood}"/>
-<circle cx="48" cy="64" r="18" fill="${C.bowl}"/>
-<circle cx="41" cy="60" r="6" fill="${C.cream}"/><circle cx="55" cy="60" r="6" fill="${C.gold}"/><circle cx="48" cy="71" r="6" fill="${C.green}"/>
-</svg>`;
-  }
-
-  return { NAME, C, logo, band, seedBand, icon, TILES };
+  return { NAME, C, logo, band, seedBand, TILES };
 })();
 
 if (typeof module !== 'undefined') module.exports = Brand;

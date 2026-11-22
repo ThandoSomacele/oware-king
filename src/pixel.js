@@ -359,7 +359,68 @@ const Pixel = (() => {
     if (t > 2200 && (!Number.isFinite(t) || Math.floor(t / 520) % 2 === 0)) ctx.drawImage(T.tap, T.ox + 32, T.oy + 254);
   }
 
-  return { AW, AH, title, drawTitle, logoCanvas };
+  // ---------- app icon ----------
+  const WOOD_PAL = ['#07060f', '#2b1605', '#4a2a0c', '#5a3218', '#7a4510', '#8a5426', '#b47a3c', '#d6a35e', '#ecc98a'].map(hex);
+  const SEED_PAL = ['#ffffff', '#fdf0dc', '#c9b99c', '#8f8068', '#fff3b0', '#ffd75a', '#f2b01e', '#a8620f', '#2f9a58', '#1f6e46', '#6dbb5e'].map(hex);
+  const W_DARK = hex('#2b1605'), W_DEEP = hex('#5a3218'), W_MID = hex('#7a4510'), W_WARM = hex('#b47a3c'), W_LIGHT = hex('#ecc98a'), W_RIM = hex('#d6a35e');
+  // Wood: long streaks of grain, a little lighter toward the top where the light falls.
+  function woodAt(x, y, H) {
+    const g = fbm(x * 0.045 + 7, y * 0.55) + 0.25 * vnoise(x * 0.3, y * 1.7);
+    let c = mix(W_MID, W_WARM, clamp((g - 0.3) * 1.7));
+    if (vnoise(x * 0.02 + 3, y * 0.9 + 11) > 0.7) c = mix(c, W_DEEP, 0.5);
+    return mul(c, 1.1 - 0.24 * (y / H));
+  }
+  // One pixel of a carved pit. Light from the top left falls on the far, lower-right wall.
+  function pitPixel(dx, dy, R) {
+    const d = Math.hypot(dx, dy);
+    if (d > R + 0.7) return null;
+    const side = (dx + dy) / (R * 1.42); // -1 upper left ... +1 lower right
+    if (d > R - 0.4) return side < 0 ? W_DARK : W_RIM; // the cut edge: shaded on one side, lit on the other
+    const t = clamp((side + 1) / 2);
+    return side < -0.72 ? mul(W_DARK, 0.7) : mix(W_DARK, W_MID, t * t * 0.9);
+  }
+  // App icon, 64 x 64: a plain gold crown above a carved pit with three seeds.
+  function icon() {
+    const S = 64, b = buf(S, S), GROUND = hex('#14110e');
+    for (let y = 0; y < S; y++) for (let x = 0; x < S; x++) {
+      const ex = Math.min(x, S - 1 - x), ey = Math.min(y, S - 1 - y);
+      if (ex < 9 && ey < 9 && Math.hypot(9 - ex, 9 - ey) > 9.3) continue; // rounded corners
+      put(b, x, y, GROUND);
+    }
+    // Crown: a band with three points.
+    const inCrown = (x, y) => x >= 17 && x <= 46 && y >= 8 && y <= 25 && (y >= 19 || [17, 31.5, 46].some((px) => Math.abs(x - px) <= (y - 8) * 0.62 + 0.6));
+    const [hi, light, mid, dark, lo] = RAMPS.gold;
+    for (let y = 6; y < 28; y++) for (let x = 15; x < 49; x++) {
+      if (inCrown(x, y)) continue;
+      if ([-1, 0, 1].some((dy) => [-1, 0, 1].some((dx) => inCrown(x + dx, y + dy)))) put(b, x, y, OUTLINE);
+    }
+    for (let y = 8; y <= 25; y++) for (let x = 17; x <= 46; x++) {
+      if (!inCrown(x, y)) continue;
+      let c = y < 14 ? light : y < 21 ? mid : dark;
+      if (!inCrown(x - 1, y) || !inCrown(x, y - 1)) c = hi;
+      else if (!inCrown(x + 1, y) || !inCrown(x, y + 1)) c = lo;
+      put(b, x, y, c);
+    }
+    // Plank and pit.
+    for (let y = 31; y <= 57; y++) for (let x = 8; x <= 55; x++) {
+      const ex = Math.min(x - 8, 55 - x), ey = Math.min(y - 31, 57 - y);
+      if (ex < 3 && ey < 3 && Math.hypot(3 - ex, 3 - ey) > 3.4) continue;
+      let c = woodAt(x, y - 31, 27);
+      if (y >= 55) c = mul(c, 0.5);
+      else if (y === 31 || x === 8) c = mix(c, W_LIGHT, 0.65);
+      put(b, x, y, c);
+    }
+    for (let y = 31; y <= 55; y++) for (let x = 19; x <= 45; x++) {
+      const c = pitPixel(x + 0.5 - 32, y + 0.5 - 43, 11);
+      if (c) put(b, x, y, c);
+    }
+    sphere(b, 27, 41, 4, hex('#fdf0dc'));
+    sphere(b, 37, 41, 4, hex('#f2b01e'));
+    sphere(b, 32, 48, 4, hex('#2f9a58'));
+    return toCanvas(b, 0, [...WOOD_PAL, ...SEED_PAL, ...RAMPS.gold, GROUND]);
+  }
+
+  return { AW, AH, title, drawTitle, logoCanvas, icon };
 })();
 
 if (typeof module !== 'undefined') module.exports = Pixel;

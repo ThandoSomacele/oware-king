@@ -884,6 +884,20 @@
   headerLogo.setAttribute('aria-label', Brand.NAME);
   $('#brand').appendChild(headerLogo);
   $('#weave').innerHTML = Brand.seedBand();
+  // The page icon (browser tab, home screen shortcut) is the pixel app icon, enlarged with hard edges.
+  try {
+    const iconArt = Pixel.icon(), big = document.createElement('canvas');
+    big.width = big.height = 192;
+    const ictx = big.getContext('2d');
+    ictx.imageSmoothingEnabled = false;
+    ictx.drawImage(iconArt, 0, 0, 192, 192);
+    for (const rel of ['icon', 'apple-touch-icon']) {
+      const link = document.createElement('link');
+      link.rel = rel;
+      link.href = big.toDataURL('image/png');
+      document.head.appendChild(link);
+    }
+  } catch { /* the page works without an icon */ }
 
   // The title screen covers the page from the first paint (see index.html) and is skipped on return visits.
   function intro() {
