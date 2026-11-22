@@ -18,6 +18,7 @@
   <main id="home">
     <p class="notice" id="notice" role="alert" hidden></p>
     <section class="hero">
+      <button id="install" class="secondary" type="button" hidden>Install Oware King on this device</button>
       <div class="weave" id="weave" aria-hidden="true"></div>
       <h1>Sow. Capture. Reach 25.</h1>
       <p class="lede">Oware is the seed game played from Accra to Abidjan for hundreds of years. One tap sows your seeds around the board.</p>
@@ -74,6 +75,7 @@
         <li>There are 48 seeds. The first player to capture 25 wins.</li>
       </ol>
     </details>
+    <p class="small foot"><a href="/privacy" id="privacyLink">Privacy policy</a> · Oware King by Object91</p>
   </main>
 
   <main id="join" hidden>
@@ -93,8 +95,10 @@
   <main id="game" hidden>
     <p class="prompt" id="prompt" hidden></p>
     <section class="invite" id="invite" hidden>
-      <h2>Send this link to your friend</h2>
+      <h2 id="inviteTitle">Send this link to your friend</h2>
       <p class="small">The game starts when they open it.</p>
+      <canvas id="inviteQr" width="1" height="1" role="img" aria-label="QR code for the game link"></canvas>
+      <p class="small" id="inviteHint">Or scan this code with a phone camera.</p>
       <input id="inviteLink" type="text" readonly aria-label="Game link">
       <div class="result-actions">
         <button id="inviteCopy" class="primary" type="button">Copy link</button>
@@ -133,6 +137,11 @@
 
 <div id="fx" aria-hidden="true"></div>
 
+<script>
+/*CONFIG*/
+/*COMPAT*/
+/*QRCODE*/
+</script>
 <script>
 /*BRAND*/
 </script>

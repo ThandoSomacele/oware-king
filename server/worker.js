@@ -4,6 +4,11 @@
 import { DurableObject } from 'cloudflare:workers';
 import Engine from '../src/engine.js';
 import page from '../dist/index.html'; // the whole game page, built by build.mjs and bundled as text
+import privacy from './privacy.html';
+import assetLinks from './assetlinks.json'; // links the Android app to this site; filled in when the app is signed
+import icon192 from '../assets/icon-192.png';
+import icon512 from '../assets/icon-512.png';
+import iconMaskable from '../assets/icon-maskable-512.png';
 
 const ALPHABET = 'abcdefghjkmnpqrstuvwxyz23456789'; // no look-alike letters or digits
 const REACTIONS = 5;
@@ -17,12 +22,67 @@ const HARD_MAX = 32; // every connection of a room, including ones that are stil
 // It is longer than a minute because browsers slow the timers of a page that is in the background.
 const SILENT = 75 * 1000;
 
+// The TV app is a packaged page, not served from this site, so the game's own address book (/api) allows any origin.
+// It holds no accounts or cookies, so this exposes nothing.
 const json = (body, status = 200) =>
-  new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json', 'cache-control': 'no-store' } });
+  new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json', 'cache-control': 'no-store', 'access-control-allow-origin': '*' } });
+const html = (body) => new Response(body, {
+  headers: {
+    'content-type': 'text/html; charset=utf-8',
+    'cache-control': 'no-cache', // players always get the newest version; it is one small file
+    'x-content-type-options': 'nosniff',
+    'referrer-policy': 'no-referrer', // game links are never passed on to other sites
+  },
+});
+const png = (bytes) => new Response(bytes, { headers: { 'content-type': 'image/png', 'cache-control': 'public, max-age=86400' } });
+
+// What a phone, tablet or PC needs to install the game as an app.
+const MANIFEST = {
+  name: 'Oware King',
+  short_name: 'Oware King',
+  description: 'The West African seed game. Play the computer, a friend online, or the daily challenge.',
+  id: '/',
+  start_url: '/',
+  scope: '/',
+  display: 'standalone',
+  orientation: 'any',
+  background_color: '#14110e',
+  theme_color: '#14110e',
+  lang: 'en',
+  categories: ['games', 'board'],
+  icons: [
+    { src: '/icon-192.png', sizes: '192x192', type: 'image/png', purpose: 'any' },
+    { src: '/icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'any' },
+    { src: '/icon-maskable-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
+  ],
+};
+// A short fingerprint of the page, so an installed copy knows when a new version is out.
+let h = 2166136261;
+for (let i = 0; i < page.length; i++) h = Math.imul(h ^ page.charCodeAt(i), 16777619);
+const VERSION = (h >>> 0).toString(36);
+// Runs inside the player's browser. It keeps a copy of the game page so the game opens with no connection.
+const SERVICE_WORKER = `
+const CACHE = 'oware-king-${VERSION}';
+self.addEventListener('install', (e) => { e.waitUntil(caches.open(CACHE).then((c) => c.add('/')).then(() => self.skipWaiting())); });
+self.addEventListener('activate', (e) => {
+  e.waitUntil(caches.keys().then((keys) => Promise.all(keys.filter((k) => k !== CACHE).map((k) => caches.delete(k)))).then(() => self.clients.claim()));
+});
+self.addEventListener('fetch', (e) => {
+  const url = new URL(e.request.url);
+  if (e.request.method !== 'GET' || url.origin !== location.origin || url.pathname !== '/') return; // only the game page; the server answers the rest
+  e.respondWith(fetch(e.request).then((res) => {
+    if (res.ok) { const copy = res.clone(); caches.open(CACHE).then((c) => c.put('/', copy)); }
+    return res;
+  }).catch(() => caches.match('/')));
+});
+`;
 
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
+    if (request.method === 'OPTIONS' && url.pathname.startsWith('/api/')) {
+      return new Response(null, { status: 204, headers: { 'access-control-allow-origin': '*', 'access-control-allow-methods': 'GET, POST', 'access-control-max-age': '86400' } });
+    }
     if (url.pathname === '/api/ping') return json({ ok: true });
     if (url.pathname === '/api/room' && request.method === 'POST') {
       const bytes = crypto.getRandomValues(new Uint8Array(6));
@@ -37,15 +97,18 @@ export default {
       if (request.headers.get('Upgrade') !== 'websocket') return json({ error: 'Expected a WebSocket' }, 426);
       return stub.fetch(request);
     }
-    if (request.method === 'GET' && (url.pathname === '/' || url.pathname === '/index.html')) {
-      return new Response(page, {
-        headers: {
-          'content-type': 'text/html; charset=utf-8',
-          'cache-control': 'no-cache', // players always get the newest version; it is one small file
-          'x-content-type-options': 'nosniff',
-          'referrer-policy': 'no-referrer', // game links are never passed on to other sites
-        },
-      });
+    if (request.method === 'GET') {
+      switch (url.pathname) {
+        case '/': case '/index.html': return html(page);
+        case '/privacy': return html(privacy);
+        case '/manifest.webmanifest': return new Response(JSON.stringify(MANIFEST), { headers: { 'content-type': 'application/manifest+json', 'cache-control': 'no-cache' } });
+        case '/sw.js': return new Response(SERVICE_WORKER, { headers: { 'content-type': 'text/javascript', 'cache-control': 'no-cache' } });
+        case '/icon-192.png': return png(icon192);
+        case '/icon-512.png': return png(icon512);
+        case '/icon-maskable-512.png': return png(iconMaskable);
+        case '/.well-known/assetlinks.json': return new Response(JSON.stringify(assetLinks), { headers: { 'content-type': 'application/json', 'cache-control': 'no-cache' } });
+        default:
+      }
     }
     return json({ error: 'Not found' }, 404);
   },

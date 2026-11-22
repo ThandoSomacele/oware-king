@@ -31,15 +31,15 @@
 body {
   background: var(--bg); color: var(--ink);
   font: 400 16px/1.5 var(--body);
+  padding: 12px 16px 32px; /* for engines without max() and env() */
   padding-left: max(16px, env(safe-area-inset-left, 0px));
   padding-right: max(16px, env(safe-area-inset-right, 0px));
-  padding-block: 12px 32px;
 }
-.app { max-width: 560px; margin: 0 auto; display: flex; flex-direction: column; gap: 20px; }
+.app { max-width: 560px; margin: 0 auto; transform-origin: top center; /* enlarged on big screens by fit() in app.js */ display: flex; flex-direction: column; gap: 20px; }
 h1, h2, p, ol { margin: 0; }
 h1, h2 { font-family: var(--display); }
 .pts, .streak-n, .count, .hand b { font-family: var(--display); }
-h1 { font-size: clamp(2rem, 9vw, 2.75rem); font-weight: 800; line-height: 1.02; letter-spacing: -0.02em; text-wrap: balance; }
+h1 { font-size: 2.25rem; font-size: clamp(2rem, 9vw, 2.75rem); font-weight: 800; line-height: 1.02; letter-spacing: -0.02em; text-wrap: balance; }
 h2 { font-size: 1.125rem; font-weight: 600; }
 .small, small { font-size: 0.875rem; color: var(--muted); }
 
@@ -107,9 +107,9 @@ main { display: flex; flex-direction: column; gap: 20px; }
 }
 .pit { background: none; border-radius: 16px; padding: 0; display: flex; flex-direction: column; align-items: center; gap: 4px; color: var(--on-board); }
 .pit.north { flex-direction: column-reverse; }
-.bowl { width: 100%; aspect-ratio: 1; border-radius: 50%; background: radial-gradient(circle at 50% 62%, var(--bowl-hi) 0%, var(--bowl) 62%, var(--bowl-lo) 100%); position: relative; display: block; box-shadow: inset 0 5px 6px rgba(0, 0, 0, 0.5), 0 1px 0 rgba(255, 255, 255, 0.25); transition: box-shadow 0.15s; }
-.seeds { position: absolute; inset: 0; display: block; }
-.seed { position: absolute; aspect-ratio: 1; border-radius: 50%; transform: translate(-50%, -50%); background: var(--seed-a); box-shadow: inset -1px -2px 0 rgba(0, 0, 0, 0.16); }
+.bowl { width: 100%; height: 0; padding-bottom: 100%; /* a square that old engines understand */ border-radius: 50%; background: radial-gradient(circle at 50% 62%, var(--bowl-hi) 0%, var(--bowl) 62%, var(--bowl-lo) 100%); position: relative; display: block; box-shadow: inset 0 5px 6px rgba(0, 0, 0, 0.5), 0 1px 0 rgba(255, 255, 255, 0.25); transition: box-shadow 0.15s; }
+.seeds { position: absolute; top: 0; right: 0; bottom: 0; left: 0; display: block; }
+.seed { position: absolute; height: 0; /* its height comes from padding-bottom, set with its width */ border-radius: 50%; transform: translate(-50%, -50%); background: var(--seed-a); box-shadow: inset -1px -2px 0 rgba(0, 0, 0, 0.16); }
 .seed.s1 { background: var(--seed-b); }
 .seed.s2 { background: var(--seed-c); }
 .count { text-shadow: 0 1px 1px rgba(40, 20, 5, 0.6); font: 600 0.9375rem/1 var(--display); font-variant-numeric: tabular-nums; opacity: 0.92; }
@@ -123,7 +123,7 @@ main { display: flex; flex-direction: column; gap: 20px; }
 .pit.wrong .bowl { outline: 4px dashed var(--ring-bad); outline-offset: 0; }
 #fx { position: absolute; left: 0; top: 0; width: 0; height: 0; pointer-events: none; z-index: 20; }
 .hand { position: absolute; left: 0; top: 0; border-radius: 50%; background: var(--hand); box-shadow: 0 0 0 2px var(--seed-c), 0 10px 18px rgba(0, 0, 0, 0.35); will-change: transform; }
-.hand .seeds { position: absolute; inset: 0; }
+.hand .seeds { position: absolute; top: 0; right: 0; bottom: 0; left: 0; }
 .hand b { position: absolute; right: -6px; top: -6px; min-width: 22px; height: 22px; padding: 0 5px; border-radius: 11px; background: var(--seed-c); color: var(--accent-ink); font: 700 0.875rem/22px var(--display); text-align: center; font-variant-numeric: tabular-nums; }
 .pts.bump { animation: bump 0.3s ease-out; }
 @keyframes bump { from { transform: scale(1.35); color: var(--accent); } to { transform: scale(1); } }
@@ -143,7 +143,7 @@ main { display: flex; flex-direction: column; gap: 20px; }
 .inlay { position: absolute; left: 22px; right: 22px; top: 50%; height: 2px; margin-top: -2px; border-radius: 1px; background: rgba(40, 20, 5, 0.55); box-shadow: 0 1px 0 rgba(255, 255, 255, 0.18); pointer-events: none; }
 
 /* Opening screen: a 160 x 284 pixel-art canvas, scaled up with hard pixel edges */
-#intro { position: fixed; inset: 0; z-index: 50; background: #0e0c20; display: flex; align-items: center; justify-content: center; padding: 0; border: 0; border-radius: 0; width: 100%; overflow: hidden; cursor: pointer; transition: opacity 0.35s; }
+#intro { position: fixed; top: 0; right: 0; bottom: 0; left: 0; z-index: 50; background: #0e0c20; display: flex; align-items: center; justify-content: center; padding: 0; border: 0; border-radius: 0; width: 100%; overflow: hidden; cursor: pointer; transition: opacity 0.35s; }
 #intro.out { opacity: 0; }
 #intro:focus-visible { outline: none; } /* the whole screen is the button; Enter, Space and Escape also start the game */
 #intro canvas { flex: none; image-rendering: pixelated; image-rendering: crisp-edges; image-rendering: pixelated; }
@@ -164,9 +164,38 @@ main { display: flex; flex-direction: column; gap: 20px; }
 .reacts button:disabled { opacity: 0.45; }
 .extra { display: flex; justify-content: center; gap: 10px; flex-wrap: wrap; }
 .extra:not(:has(button:not([hidden]))) { display: none; }
-#join h1 { font-size: clamp(1.5rem, 7vw, 2rem); }
+#join h1 { font-size: 1.75rem; font-size: clamp(1.5rem, 7vw, 2rem); }
 /* A reaction pops up beside the score, clear of the player's name */
 .react-pop { position: absolute; right: 64px; top: 50%; font-size: 2.25rem; line-height: 1; pointer-events: none; animation: pop 1.6s ease-out forwards; z-index: 5; }
 @keyframes pop { 0% { transform: translateY(-50%) scale(0.3); opacity: 0; } 15% { transform: translateY(-60%) scale(1.25); opacity: 1; } 80% { transform: translateY(-90%) scale(1); opacity: 1; } 100% { transform: translateY(-120%) scale(1); opacity: 0; } }
+
+#inviteQr { width: 168px; height: 168px; background: #fff; border-radius: 8px; image-rendering: pixelated; align-self: center; }
+#install { align-self: flex-start; }
+.foot a { color: var(--muted); }
+
+/* TV and keyboard play: the focused control must be obvious from across a room */
+.tv button:focus, .tv input:focus, .tv summary:focus, .tv .seg input:focus + label { outline: 4px solid var(--accent); outline-offset: 3px; }
+.tv .pit:focus .bowl { box-shadow: 0 0 0 4px var(--ink), 0 0 0 8px var(--accent); }
+.tv .pit:focus { outline: none; }
+.tv #inviteShare, .tv #inviteCopy, .tv #inviteLink, .tv #install { display: none; }
+
+/* Older engines (the "old" class is set in compat.js): no flex gap, grid, or :focus-visible. Spacing uses margins. */
+.old .app, .old main, .old .hero, .old .daily-body, .old .mode, .old .online, .old .invite, .old .result, .old .field, .old .rules ol,
+.old .top, .old .bar, .old .who, .old .result-actions, .old .reacts, .old .extra, .old .daily, .old .streak, .old .seg, .old .modes { gap: 0; }
+.old .app > * + *, .old main > * + * { margin-top: 20px; }
+.old #game > * + * { margin-top: 12px; }
+.old .hero > * + *, .old .daily-body > * + *, .old .mode > * + *, .old .online > * + *, .old .invite > * + *, .old .result > * + *, .old .rules li + li { margin-top: 12px; }
+.old .field > * + * { margin-top: 6px; }
+.old .who > * + *, .old .streak > * + * { margin-left: 8px; }
+.old .result-actions > * + *, .old .reacts > * + *, .old .extra > * + * { margin-left: 10px; }
+.old .daily > * + * { margin-left: 20px; }
+.old .modes { display: block; }
+.old .modes > * + * { margin-top: 12px; }
+.old .board { display: block; font-size: 0; padding: 16px 7px 18px; }
+.old .pit { display: inline-flex; width: 16.666%; padding: 0 3px; vertical-align: top; font-size: 1rem; }
+.old .pit.north { margin-bottom: 18px; }
+.old .pit > * + * { margin-top: 4px; }
+.old .pit.north > * + * { margin-top: 0; margin-bottom: 4px; }
+.old button:focus, .old input:focus, .old summary:focus, .old .seg input:focus + label { outline: 3px solid var(--accent); outline-offset: 2px; }
 
 @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }

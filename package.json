@@ -8,9 +8,14 @@
     "dev": "node build.mjs && wrangler dev --port 8787",
     "deploy": "node build.mjs && wrangler deploy",
     "test": "node build.mjs && node test/engine.test.js && node test/play.js",
-    "test:online": "node test/server.test.js && node test/online.js"
+    "test:online": "node test/server.test.js && node test/online.js",
+    "icons": "node build.mjs && node scripts/make-icons.js && node build.mjs",
+    "tv": "node build.mjs && ares-package dist-tv -o dist-ipk",
+    "test:tv": "OWARE_SERVER=http://127.0.0.1:8787 node build.mjs && node test/tv.js; node build.mjs",
+    "store": "OWARE_SERVER=http://127.0.0.1:8787 node build.mjs && node scripts/make-store.js; node build.mjs"
   },
   "devDependencies": {
+    "@webos-tools/cli": "^3.2.6",
     "wrangler": "^4.166.0"
   }
 }

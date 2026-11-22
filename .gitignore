@@ -1,4 +1,12 @@
 dist/
 dist-artifact/
+dist-tv/
+dist-ipk/
+*.ipk
 node_modules/
 .wrangler/
+# Signing keys and store secrets must never be committed
+*.keystore
+*.jks
+*.pem
+.env

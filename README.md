@@ -6,7 +6,10 @@ Oware, the West African sowing game, as one small web page that runs on phones, 
 
 - `src/engine.js`: the rules, the computer player and the daily puzzle. No screen code. The game server uses the same file.
 - `src/pixel.js`: the pixel-art title screen and logo, drawn in code.
-- `src/brand.js`: the app icon and seed bands, drawn in code.
+- `src/brand.js`: the game's name and the seed bands.
+- `src/config.js`, `src/compat.js`: per-build settings, and fill-ins for old TV browsers.
+- `src/vendor/qrcode.min.js`: QR code library (MIT licence, see `src/vendor/README.md`).
+- `platforms/webos/`, `store/`, `assets/`, `scripts/`: TV app settings, store material, icons and the scripts that make them.
 - `src/app.js`, `src/style.css`, `src/index.html`: the screens, animation, sounds and online play.
 - `server/worker.js`: the online game server (Cloudflare Workers). One room per game link; it checks every move.
 - `wrangler.jsonc`: Cloudflare settings.
@@ -16,12 +19,25 @@ Oware, the West African sowing game, as one small web page that runs on phones, 
 
 Run `npm install` once. Then:
 
-- `npm run build`: joins the source files into `dist/index.html`.
+- `npm run build`: builds the web page (`dist/`), the preview page (`dist-artifact/`) and the TV app folder (`dist-tv/`).
 - `npm run dev`: builds, then runs the page and game server on your computer at http://127.0.0.1:8787
 - `npm test`: checks the rules and plays two full games in a browser.
-- `npm run test:online`: with `npm run dev` running in another window, two browsers play two online games by link.
+- `npm run test:online`: with `npm run dev` running in another window, a hostile-player test and two browsers playing two online games.
+- `npm run test:tv`: with `npm run dev` running, the TV app hosts a game with remote keys and a phone joins from the QR link.
+- `npm run tv`: makes the LG TV package in `dist-ipk/`. `sh platforms/webos/deploy.sh` also installs it on your TV.
+- `npm run icons`: redraws the icon files in `assets/` from the pixel icon.
+- `npm run store`: with `npm run dev` running, remakes the store screenshots in `store/screenshots/`.
 - `npm run deploy`: builds and publishes to Cloudflare. It needs a Cloudflare API token with the "Edit Cloudflare Workers" permission, given as the `CLOUDFLARE_API_TOKEN` setting. Never save the token in this repository.
 - The game page is bundled into the server code (`server/worker.js` imports `dist/index.html`), so one upload publishes both.
+
+## Platforms
+
+`store/README.md` is the starting point for every store. In short:
+
+- **Web:** the live page installs as an app from the browser (manifest, icons and an offline copy are served by `server/worker.js`).
+- **Big screens:** on tablets, PCs and TVs the whole game is enlarged to fit (`fit()` in `src/app.js`). Arrow keys, Enter and Escape work everywhere.
+- **LG webOS TV:** `platforms/webos/` holds the app settings. The TV build names the server in full (`LIVE` in `build.mjs`) and its code is converted for old TV browsers.
+- **Android, Windows, iOS:** store packages that wrap the live page, made with PWABuilder. See `store/`.
 
 ## How online play works
 

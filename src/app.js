@@ -2,6 +2,7 @@
   'use strict';
   const E = Engine;
   const $ = (s) => document.querySelector(s);
+  const isTV = Config.TV || /Web0S|webOS|SmartTV|Tizen/i.test(navigator.userAgent); // remote-control layout
   const DEPTH = { easy: 1, medium: 3, hard: 9 };
   const BLUNDER = { easy: 0.35, medium: 0.05, hard: 0 };
 
@@ -12,7 +13,7 @@
 
   // Saved on this device only. The game must still work when storage is blocked.
   const store = {
-    get(k, d) { try { const v = localStorage.getItem('oware.' + k) ?? localStorage.getItem('imbewu.' + k); // 'imbewu.' is the old name
+    get(k, d) { try { let v = localStorage.getItem('oware.' + k); if (v == null) v = localStorage.getItem('imbewu.' + k); // 'imbewu.' is the old name
       return v == null ? d : JSON.parse(v); } catch { return d; } },
     set(k, v) { try { localStorage.setItem('oware.' + k, JSON.stringify(v)); } catch { /* ignore */ } },
   };
@@ -21,6 +22,7 @@
   const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 
   let mode = null, level = store.get('level', 'easy');
+  let hadTurn = false; // TV: whether the last drawing already had pits the player could choose
   let freeArmed = false; // "Invite someone else" was tapped once and waits for a second tap
   let bottom = 0; // the player whose pits are on the bottom row
   const net = { tapped: null, conn: 0, ws: null, code: null, seat: null, snap: null, applied: 0, game: -1, busy: false, waiting: false, phase: 'idle', retry: 0, ticket: 0, pending: 0, beat: 0, pong: 0, sent: 0 };
@@ -158,7 +160,7 @@
     for (let k = 0; k < shown; k++) {
       const r = shown === 1 ? 0 : 36 * Math.sqrt((k + 0.5) / Math.max(shown, 4));
       const a = k * 2.39996 + i * 0.7;
-      h += `<i class="seed s${(k + i) % 3}" style="left:${(50 + r * Math.cos(a)).toFixed(1)}%;top:${(50 + r * Math.sin(a)).toFixed(1)}%;width:${size}%"></i>`;
+      h += `<i class="seed s${(k + i) % 3}" style="left:${(50 + r * Math.cos(a)).toFixed(1)}%;top:${(50 + r * Math.sin(a)).toFixed(1)}%;width:${size}%;padding-bottom:${size}%"></i>`;
     }
     return h;
   }
@@ -205,7 +207,9 @@
       ],
       { duration: ms }
     );
-    return anim.finished.catch(() => {});
+    // Old engines have no `finished` promise on an animation.
+    const done = anim.finished || new Promise((res) => { anim.onfinish = res; anim.oncancel = res; });
+    return done.catch(() => {});
   }
 
   const scoreEl = (p) => $(p === bottom ? '#scoreBottom' : '#scoreTop');
@@ -231,6 +235,14 @@
     $('#barBottom').classList.toggle('turn', live && state.turn === bottom);
     const can = !locked && live && humanTurn() ? E.legalMoves(state) : [];
     pitEls.forEach((el, i) => el.classList.toggle('can', can.includes(i)));
+    // On a TV, when it becomes your turn the remote's focus goes to a pit you can play,
+    // unless the player is answering a question in a panel.
+    if (isTV && can.length) {
+      const f = document.activeElement, onPit = pitEls.indexOf(f), inPanel = f && f.closest && f.closest('#leave, #result');
+      const lost = !f || f === document.body || f.offsetParent === null || (onPit !== -1 && !can.includes(onPit));
+      if (!inPanel && (lost || !hadTurn)) pitEls[can[0]].focus();
+    }
+    hadTurn = can.length > 0;
     let s = note;
     const online = mode === 'online';
     // Connection trouble is always shown, also after the game has ended.
@@ -460,6 +472,7 @@
     $('#join').hidden = name !== 'join';
     $('#back').hidden = name === 'home';
     window.scrollTo(0, 0);
+    if (isTV) setTimeout(() => { const c = homeControl(); if (c) c.focus(); }, 50);
   }
 
   function resetBoard() {
@@ -555,6 +568,10 @@
   let invite = (() => { const m = /^#g-([a-z2-9]{6})$/.exec(location.hash); return m ? m[1] : null; })();
   const myName = () => ($('#nick').value.trim() || $('#joinNick').value.trim()).slice(0, 16) || 'Player';
   const setHash = (code) => { try { history.replaceState(null, '', code ? `#g-${code}` : location.pathname); } catch { /* keep the address */ } };
+  // '' means the site this page came from. The TV app names the server in full (see config.js).
+  const api = (path) => Config.SERVER + path;
+  const wsBase = () => (Config.SERVER || location.origin).replace(/^http/, 'ws');
+  const linkFor = (code) => `${Config.SERVER ? Config.SERVER + '/' : location.origin + location.pathname}#g-${code}`;
   const netSend = (msg) => { try { if (net.ws && net.ws.readyState === 1) net.ws.send(JSON.stringify(msg)); } catch { /* the reconnect loop will recover */ } };
 
   function connect() {
@@ -567,7 +584,7 @@
     try { if (old) old.close(); } catch { /* already closed */ }
     clearTimeout(net.conn);
     net.conn = setTimeout(() => { if (net.code === code && net.phase !== 'live' && net.phase !== 'replaced') dropped(); }, 10000);
-    const ws = new WebSocket(`${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}/api/room/${code}/ws`);
+    const ws = new WebSocket(`${wsBase()}/api/room/${code}/ws`);
     net.ws = ws;
     ws.onopen = () => netSend({ t: 'join', id: pid, name: myName() });
     ws.onmessage = (ev) => {
@@ -692,7 +709,10 @@
     if (!r && $('#invite').hidden) $('#inviteCopy').textContent = 'Copy link'; // a new invite has not been copied yet
     $('#invite').hidden = !!r;
     $('#reacts').hidden = !r;
-    if (!r) $('#inviteLink').value = `${location.origin}${location.pathname}#g-${net.code}`;
+    if (!r && $('#inviteLink').value !== linkFor(net.code)) {
+      $('#inviteLink').value = linkFor(net.code);
+      drawQr($('#inviteQr'), linkFor(net.code));
+    }
     if (state.over && !$('#result').hidden) endOnline();
     sync();
   }
@@ -752,7 +772,7 @@
   async function openInvite(code) {
     invite = code;
     let info = null;
-    try { info = await (await fetch(`/api/room/${code}`, { cache: 'no-store' })).json(); } catch { /* treated as not valid */ }
+    try { info = await (await fetch(api(`/api/room/${code}`), { cache: 'no-store' })).json(); } catch { /* treated as not valid */ }
     if (invite !== code || $('#game').hidden === false) return; // the player has moved on
     const mine = store.get('room', null) === code;
     if (!info || !info.ok || (info.full && !mine)) {
@@ -769,6 +789,22 @@
     $('#joinNick').focus({ preventScroll: true });
   }
 
+  // Draws a QR code for `text` on a canvas: dark squares on white, with the quiet border scanners need.
+  function drawQr(cv, text) {
+    try {
+      const qr = qrcode(0, 'M');
+      qr.addData(text);
+      qr.make();
+      const n = qr.getModuleCount(), q = 4, ctx = cv.getContext('2d');
+      cv.width = cv.height = n + 2 * q;
+      ctx.fillStyle = '#fff';
+      ctx.fillRect(0, 0, cv.width, cv.height);
+      ctx.fillStyle = '#000';
+      for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) if (qr.isDark(y, x)) ctx.fillRect(x + q, y + q, 1, 1);
+      cv.hidden = false;
+    } catch { cv.hidden = true; }
+  }
+
   function onlineError(text) {
     $('#onlineError').textContent = text;
     $('#onlineError').hidden = !text;
@@ -779,7 +815,7 @@
     const ticket = ++net.ticket; // if the player starts something else while we wait, this reply is dropped
     $('#playOnline').disabled = true;
     try {
-      const res = await fetch('/api/room', { method: 'POST' });
+      const res = await fetch(api('/api/room'), { method: 'POST' });
       if (!res.ok) throw new Error(String(res.status));
       const { code } = await res.json();
       if (ticket === net.ticket && !$('#home').hidden) joinOnline(code);
@@ -859,14 +895,86 @@
     document.addEventListener('visibilitychange', () => { if (!document.hidden) heartbeat(); }); // phones can cut a hidden page's connection
 
     try {
-      if (!/^https?:$/.test(location.protocol)) return;
-      const res = await fetch('/api/ping', { cache: 'no-store' });
+      if (!Config.SERVER && !/^https?:$/.test(location.protocol)) return;
+      const res = await fetch(api('/api/ping'), { cache: 'no-store' });
       if (!res.ok || !(await res.json()).ok) return;
     } catch { return; }
     $('#onlineCard').hidden = false;
     drawHome();
+    $('#privacyLink').href = api('/privacy');
+    if (isTV) {
+      $('#inviteTitle').textContent = 'Scan this code with a phone to join';
+      $('#inviteHint').textContent = 'Your friend plays on their phone, from anywhere.';
+      $('#onlineNote').textContent = 'Create a game and a friend joins by scanning a code with their phone.';
+    }
+    // Installed like an app: works offline for the modes that need no server.
+    if (!Config.SERVER && 'serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('/sw.js').catch(() => {});
     if (invite) openInvite(invite);
   }
+
+  // ---------- big screens ----------
+  // On tablets, PCs and TVs the whole game is enlarged to use the screen. Phones are left alone.
+  const appEl = document.querySelector('.app');
+  function fit() {
+    const w = innerWidth, h = innerHeight;
+    let z = w >= 700 ? Math.min((w - 32) / 560, h / 560) : 1;
+    z = Math.round(Math.max(1, Math.min(3.5, z)) * 100) / 100;
+    appEl.style.transform = z === 1 ? '' : `scale(${z})`;
+    appEl.style.marginBottom = z === 1 ? '' : `${Math.round((z - 1) * appEl.offsetHeight)}px`; // scaling does not move what follows, so make the room by hand
+  }
+  window.addEventListener('resize', fit);
+  if (window.ResizeObserver) new ResizeObserver(fit).observe(appEl);
+  else setInterval(fit, 1000); // old TV engines
+
+  // ---------- remote control and arrow keys ----------
+  // Arrow keys move to the nearest control in that direction. OK or Enter presses it. Back or Escape goes back.
+  if (isTV) document.documentElement.className += ' tv';
+  const shape = (el) => (el.type === 'radio' ? document.querySelector(`label[for="${el.id}"]`) || el : el).getBoundingClientRect();
+  function controls() {
+    const view = [$('#home'), $('#game'), $('#join')].find((m) => !m.hidden);
+    return [...document.querySelectorAll('.top button'), ...(view ? view.querySelectorAll('button, input, summary') : [])]
+      .filter((el) => !el.disabled && el.offsetParent !== null && shape(el).width > 0);
+  }
+  function homeControl() {
+    if (!$('#game').hidden) return document.querySelector('.pit.can') || [$('#resultMain'), $('#inviteCopy'), $('#back')].find((b) => b.offsetParent);
+    if (!$('#join').hidden) return $('#joinNick');
+    return [$('#playOnline'), $('#playDaily')].find((b) => b.offsetParent);
+  }
+  function step(dir) { // 37 left, 38 up, 39 right, 40 down
+    const all = controls(), from = document.activeElement;
+    if (!all.includes(from)) { const first = homeControl(); if (first) first.focus(); return true; }
+    const a = shape(from), ax = a.left + a.width / 2, ay = a.top + a.height / 2, across = dir === 38 || dir === 40;
+    let best = null, bestScore = Infinity;
+    for (const el of all) {
+      if (el === from) continue;
+      const b = shape(el), bx = b.left + b.width / 2, by = b.top + b.height / 2;
+      // `gap` is the clear distance in the direction pressed, edge to edge. `side` is how far off to the side it is.
+      const gap = dir === 37 ? a.left - b.right : dir === 39 ? b.left - a.right : dir === 38 ? a.top - b.bottom : b.top - a.bottom;
+      const side = across ? Math.abs(bx - ax) : Math.abs(by - ay);
+      if (gap < -2) continue; // not in that direction
+      if (!across && side > Math.max(a.height, b.height)) continue; // left and right stay in the same row
+      const score = across ? gap * 4 + side : gap + side * 4; // up and down take the nearest row first
+      if (score < bestScore) { bestScore = score; best = el; }
+    }
+    if (!best) return false;
+    best.focus();
+    if (best.scrollIntoView) best.scrollIntoView({ block: 'nearest' });
+    return true;
+  }
+  function goBack() {
+    if (!$('#leave').hidden) { $('#leave').hidden = true; return; }
+    if ($('#home').hidden) return askHome();
+    if (isTV) window.close(); // on the TV, Back on the first screen leaves the app
+  }
+  document.addEventListener('keydown', (e) => {
+    if (!$('#intro').hidden) return; // the title screen has its own keys
+    const k = e.keyCode, t = document.activeElement, typing = t && t.tagName === 'INPUT' && t.type === 'text';
+    if (k === 461 || (k === 27 && !typing)) { e.preventDefault(); goBack(); return; }
+    if (k === 13 && t && t.type === 'radio') { t.click(); return; }
+    if (k < 37 || k > 40 || e.altKey || e.ctrlKey || e.metaKey) return;
+    if (typing && (k === 37 || k === 39)) return; // left and right move the text cursor
+    if (step(k)) e.preventDefault();
+  });
 
   // ---------- brand and opening screen ----------
   // The header logo is drawn at a whole number of screen pixels per art pixel, so it stays sharp.
@@ -924,7 +1032,7 @@
       setTimeout(() => {
         el.hidden = true;
         const next = [$('#playOnline'), $('#playDaily')].find((b) => b.offsetParent);
-        if (byKey && next) next.focus({ preventScroll: true });
+        if ((byKey || isTV) && next) next.focus({ preventScroll: true });
       }, 450);
     };
     el.addEventListener('click', close);
@@ -939,7 +1047,7 @@
       for (;;) {
         W = Math.max(156, Math.ceil(pw / s));
         H = Math.max(Pixel.AH, Math.ceil(ph / s));
-        if (W * H <= 260000) break;
+        if (W * H <= (isTV ? 90000 : 260000)) break; // TVs have slow processors
         s++; // very large screens: bigger pixels keep the drawing fast
       }
       cv.width = W;
@@ -959,8 +1067,14 @@
 
   // ---------- wiring ----------
   buildBoard();
+  fit();
   intro();
   setupOnline();
+  // "Install" appears where the browser offers to install the game as an app.
+  let installEvent = null;
+  window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); installEvent = e; $('#install').hidden = isTV; });
+  window.addEventListener('appinstalled', () => { $('#install').hidden = true; });
+  $('#install').addEventListener('click', () => { if (installEvent) installEvent.prompt(); $('#install').hidden = true; });
   drawSound();
   drawHome();
   $('#sound').addEventListener('click', () => { soundOn = !soundOn; store.set('sound', soundOn); drawSound(); sfx.drop(); });
