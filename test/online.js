@@ -36,7 +36,7 @@ const board = (page) => page.evaluate(() => ({
   // An invalid link is refused with a clear message
   const bad = await mk('bad');
   await bad.goto(URL0 + '#g-zzzzzz');
-  await bad.waitForSelector('#onlineError:not([hidden])', { timeout: 10000 }).catch(() => errors.push('invalid link was not refused'));
+  await bad.waitForSelector('#notice:not([hidden])', { timeout: 10000 }).catch(() => errors.push('invalid link was not refused'));
   if (!(await bad.locator('#game').isHidden())) errors.push('invalid link opened a game');
   await bad.context().close();
 
@@ -45,7 +45,7 @@ const board = (page) => page.evaluate(() => ({
   await b.waitForSelector('#join:not([hidden])', { timeout: 10000 });
   if (!/Ama invited you/.test(await b.textContent('#joinTitle'))) errors.push('join screen does not name the host');
   await b.fill('#joinNick', 'Kofi');
-  await b.click('#joinGo');
+  await b.press('#joinNick', 'Enter'); // Enter joins, no need to find the button
   await a.waitForSelector('#invite', { state: 'hidden' });
   if (!/Kofi/.test(await a.textContent('#nameTop'))) errors.push('A does not see Kofi');
   if (!/Ama/.test(await b.textContent('#nameTop'))) errors.push('B does not see Ama');
@@ -53,10 +53,13 @@ const board = (page) => page.evaluate(() => ({
   // A third player cannot join
   const c = await mk('C');
   await c.goto(link);
-  await c.waitForSelector('#join:not([hidden])');
-  await c.fill('#joinNick', 'Third');
-  await c.click('#joinGo');
-  await c.waitForSelector('#onlineError:not([hidden])', { timeout: 10000 }).catch(() => errors.push('third player was not refused'));
+  await c.waitForSelector('#notice:not([hidden])', { timeout: 10000 }).catch(() => errors.push('third player was not refused'));
+  if (!/two players/.test(await c.textContent('#notice'))) errors.push('third player was not told the game is full');
+  if (!(await c.locator('#join').isHidden())) errors.push('third player was asked for a name before being refused');
+  // A good link pasted into this already open page opens the join screen
+  const other = await (await c.request.post(URL0 + 'api/room')).json();
+  await c.evaluate((code) => { location.hash = 'g-' + code; }, other.code);
+  await c.waitForSelector('#join:not([hidden])', { timeout: 10000 }).catch(() => errors.push('a link pasted into an open page did nothing'));
   await c.context().close();
 
   // reaction
@@ -140,7 +143,7 @@ const board = (page) => page.evaluate(() => ({
 
   // After the game, one player leaves: the other is told and is not left waiting on a dead button
   await b.click('#resultHome');
-  await a.waitForFunction(() => /has left/.test(resultText.textContent) && /Back to home/.test(resultMain.textContent), null, { timeout: 10000 }).catch(() => errors.push('A was not told that B left after the game'));
+  await a.waitForFunction(() => /not connected/.test(resultText.textContent) && /Back to home/.test(resultMain.textContent), null, { timeout: 10000 }).catch(() => errors.push('A was not told that B left after the game'));
   if (!(await b.locator('#resume').isHidden())) errors.push('a finished game is still offered as "Return to your game"');
 
   console.log(errors.length ? 'FAILED\n' + [...new Set(errors)].slice(0, 15).join('\n') : 'all online checks passed');

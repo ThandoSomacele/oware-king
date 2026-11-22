@@ -21,8 +21,9 @@
   const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 
   let mode = null, level = store.get('level', 'easy');
+  let freeArmed = false; // "Invite someone else" was tapped once and waits for a second tap
   let bottom = 0; // the player whose pits are on the bottom row
-  const net = { ws: null, code: null, seat: null, snap: null, applied: 0, game: -1, busy: false, waiting: false, phase: 'idle', retry: 0, ticket: 0, pending: 0, beat: 0, pong: 0, sent: 0 };
+  const net = { tapped: null, conn: 0, ws: null, code: null, seat: null, snap: null, applied: 0, game: -1, busy: false, waiting: false, phase: 'idle', retry: 0, ticket: 0, pending: 0, beat: 0, pong: 0, sent: 0 };
   let state = null, view = [], locked = false, thinking = false, puzzle = null, gameId = 0, note = '';
 
   // ---------- sound ----------
@@ -232,23 +233,30 @@
     const can = !locked && live && humanTurn() ? E.legalMoves(state) : [];
     pitEls.forEach((el, i) => el.classList.toggle('can', can.includes(i)));
     let s = note;
-    if (!s && live) {
+    const online = mode === 'online';
+    // Connection trouble is always shown, also after the game has ended.
+    if (!s && online && net.phase === 'connecting') s = 'Connecting';
+    else if (!s && online && net.phase === 'down') s = 'Connection lost. Reconnecting';
+    else if (!s && online && net.phase === 'replaced') s = 'This game is now open in another tab or on another device.';
+    else if (!s && live) {
       if (mode === 'ai') s = state.turn === 1 ? (thinking ? 'The computer is thinking' : 'The computer is playing') : locked ? 'Sowing your seeds' : 'Your turn. Tap a pit with a gold ring.';
       else if (mode === 'local') s = state.turn === 0 ? 'Player 1 to play' : 'Player 2 to play';
-      else if (mode === 'online') {
+      else if (online) {
         const r = rival();
-        if (net.phase === 'connecting') s = 'Connecting';
-        else if (net.phase === 'down') s = 'Connection lost. Reconnecting';
-        else if (net.phase === 'replaced') s = 'This game is now open in another tab or on another device.';
-        else if (!r) s = 'Waiting for your friend to join';
-        else if (state.turn === net.seat) s = locked ? 'Sowing your seeds' : 'Your turn. Tap a pit with a gold ring.';
+        if (!r) s = 'Waiting for your friend to join';
+        else if (net.waiting) s = 'Sending your move';
+        else if (state.turn === net.seat) s = locked ? 'Sowing your seeds' : r.online ? 'Your turn. Tap a pit with a gold ring.' : `${r.name} is offline. You can still play your move.`;
         else s = r.online ? `${r.name} is playing` : `${r.name} is offline. The game waits for them.`;
       }
     }
     $('#status').textContent = s;
-    const on = mode === 'online' && !!net.snap, r = on ? rival() : null;
-    $('#free').hidden = !(on && net.phase === 'live' && net.seat === 0 && r && !r.online && !net.snap.moves.length);
-    $('#takeover').hidden = !(mode === 'online' && net.phase === 'replaced');
+    const on = online && !!net.snap, r = on ? rival() : null;
+    // The creator can replace a friend who is away, before the game starts. It takes two taps.
+    const canFree = !!(on && net.phase === 'live' && net.seat === 0 && r && !r.online && !net.snap.moves.length);
+    if (!canFree) freeArmed = false;
+    $('#free').hidden = !canFree;
+    $('#free').textContent = canFree && freeArmed ? `Remove ${r.name} and invite someone else` : 'Invite someone else';
+    $('#takeover').hidden = !(online && net.phase === 'replaced');
   }
 
   function pulse(i) {
@@ -266,6 +274,8 @@
     }
     if (mode === 'online') {
       net.waiting = true; // the move is shown when the server confirms it
+      net.tapped = i;
+      pitEls[i].classList.add('lift'); // an instant sign that the tap was received
       netSend({ t: 'move', pit: i, n: net.snap.moves.length });
       clearTimeout(net.sent);
       net.sent = setTimeout(dropped, 5000); // no answer: reconnect and unlock the board
@@ -382,7 +392,9 @@
     $('#resultMain').textContent = mainLabel;
     $('#resultMain').onclick = mainAction;
     $('#shareText').hidden = true;
+    const opening = $('#result').hidden;
     $('#result').hidden = false;
+    if (opening) $('#resultMain').focus({ preventScroll: true });
     $('#result').scrollIntoView({ block: 'nearest', behavior: reduced ? 'auto' : 'smooth' });
   }
 
@@ -464,6 +476,7 @@
     $('#resultMain').disabled = false;
     $('#invite').hidden = true;
     $('#leave').hidden = true;
+    notify('');
     $('#reacts').hidden = mode !== 'online' || !rival();
     net.busy = false;
     net.ticket++;
@@ -550,6 +563,11 @@
     const code = net.code;
     if (!code) return;
     if (net.phase !== 'down') net.phase = 'connecting';
+    const old = net.ws; // never more than one connection at a time
+    net.ws = null;
+    try { if (old) old.close(); } catch { /* already closed */ }
+    clearTimeout(net.conn);
+    net.conn = setTimeout(() => { if (net.code === code && net.phase !== 'live' && net.phase !== 'replaced') dropped(); }, 10000);
     const ws = new WebSocket(`${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}/api/room/${code}/ws`);
     net.ws = ws;
     ws.onopen = () => netSend({ t: 'join', id: pid, name: myName() });
@@ -565,7 +583,7 @@
       else if (msg.t === 'replaced') { // the same player opened the game in another tab or on another device
         net.ws = null;
         net.phase = 'replaced';
-        net.waiting = false;
+        untap();
         clearTimeout(net.sent);
         drawAll();
       }
@@ -580,12 +598,19 @@
     net.ws = null;
     try { if (ws) ws.close(); } catch { /* already closed */ }
     net.phase = 'down';
-    net.waiting = false;
+    untap();
     clearTimeout(net.sent);
     clearTimeout(net.pong);
     if (state) drawAll();
+    if (state && state.over && !$('#result').hidden) endOnline();
     clearTimeout(net.pending);
     net.pending = setTimeout(connect, Math.min(8000, 500 * 2 ** net.retry++));
+  }
+  // The tapped pit is no longer waiting for the server.
+  function untap() {
+    net.waiting = false;
+    if (net.tapped != null && pitEls[net.tapped]) pitEls[net.tapped].classList.remove('lift');
+    net.tapped = null;
   }
   // Asks the server for a sign of life. No answer in 5 seconds means the connection is dead.
   function heartbeat() {
@@ -596,10 +621,10 @@
   }
 
   function joinOnline(code) {
+    if (!code) return;
     leaveOnline();
     invite = null;
     store.set('nick', myName());
-    store.set('room', code);
     mode = 'online';
     Object.assign(net, { code, seat: null, snap: null, applied: 0, game: -1, busy: false, waiting: false, phase: 'connecting', retry: 0 });
     setHash(code);
@@ -621,6 +646,7 @@
     clearTimeout(net.pending);
     clearTimeout(net.pong);
     clearTimeout(net.sent);
+    clearTimeout(net.conn);
     clearInterval(net.beat);
     const ws = net.ws;
     net.ws = null;
@@ -638,10 +664,10 @@
 
   // The game cannot be joined: go home and say why.
   function failOnline(text) {
-    store.set('room', null);
+    if (store.get('room', null) === net.code) store.set('room', null); // only forget the game that failed
     leaveOnline();
     goHome();
-    onlineError(text);
+    notify(text);
   }
 
   function onSnapshot(s) {
@@ -650,7 +676,8 @@
     net.seat = s.you;
     net.phase = 'live';
     net.retry = 0;
-    net.waiting = false;
+    untap();
+    if (store.get('room', null) !== net.code) store.set('room', net.code); // saved once the server has given us a seat
     if (s.game !== net.game || s.moves.length < net.applied) { // first picture, a rematch, or we are out of step
       net.game = s.game;
       orient(s.you);
@@ -691,8 +718,11 @@
     const title = w === -1 ? 'A draw' : w === me ? 'You win' : `${them} wins`;
     const score = `Final score ${state.score[me]} to ${state.score[1 - me]}.${state.sweep ? ' No more moves were possible, so each player kept the seeds on their side.' : ''}`;
     const first = $('#result').hidden;
-    if (!r || !r.online) {
-      showResult(title, `${score} ${them} has left the game.`, 'Back to home', goHome);
+    if (net.phase !== 'live') { // our own connection is down
+      showResult(title, `${score} Connection lost. Reconnecting.`, 'Rematch', () => {});
+      $('#resultMain').disabled = true;
+    } else if (!r || !r.online) {
+      showResult(title, `${score} ${them} is not connected right now.`, 'Back to home', goHome);
       $('#resultMain').disabled = false;
     } else {
       const asked = s.rematch[me], theyAsked = s.rematch[1 - me];
@@ -710,6 +740,34 @@
     bar.appendChild(el);
     setTimeout(() => el.remove(), 1700);
     sfx.rattle(2);
+  }
+
+  // A notice at the top of the home screen, where it cannot be missed.
+  function notify(text) {
+    $('#notice').textContent = text;
+    $('#notice').hidden = !text;
+    if (text) window.scrollTo(0, 0);
+  }
+
+  // A game link was opened: check it, then go straight in or ask for a name first.
+  async function openInvite(code) {
+    invite = code;
+    let info = null;
+    try { info = await (await fetch(`/api/room/${code}`, { cache: 'no-store' })).json(); } catch { /* treated as not valid */ }
+    if (invite !== code || $('#game').hidden === false) return; // the player has moved on
+    const mine = store.get('room', null) === code;
+    if (!info || !info.ok || (info.full && !mine)) {
+      invite = null;
+      setHash(null);
+      show('home');
+      notify(info && info.ok ? 'That game already has two players. Ask your friend for a new link, or create a game.'
+        : 'This game link is not valid or has expired. Ask your friend for a new one, or create a game.');
+      return;
+    }
+    if (mine || store.get('nick', '')) return joinOnline(code); // a returning player goes straight in
+    $('#joinTitle').textContent = info.host ? `${info.host} invited you to play` : 'You are invited to play';
+    show('join');
+    $('#joinNick').focus({ preventScroll: true });
   }
 
   function onlineError(text) {
@@ -736,6 +794,7 @@
   function askHome() {
     if (mode === 'online' && net.code && net.phase !== 'replaced' && state && !state.over) {
       $('#leave').hidden = false;
+      $('#leaveNo').focus({ preventScroll: true });
       $('#leave').scrollIntoView({ block: 'nearest' });
       return;
     }
@@ -761,12 +820,23 @@
     $('#nick').addEventListener('input', () => { $('#joinNick').value = $('#nick').value; });
     $('#joinNick').addEventListener('input', () => { $('#nick').value = $('#joinNick').value; });
     $('#playOnline').addEventListener('click', createOnline);
-    $('#resume').addEventListener('click', () => joinOnline(store.get('room', null)));
+    $('#resume').addEventListener('click', () => {
+      const code = store.get('room', null);
+      if (!code) { drawHome(); notify('That game is no longer saved on this device.'); return; }
+      joinOnline(code);
+    });
+    const onEnter = (input, button) => $(input).addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); $(button).click(); } });
+    onEnter('#nick', '#playOnline');
+    onEnter('#joinNick', '#joinGo');
     $('#joinGo').addEventListener('click', () => { if (invite) joinOnline(invite); else goHome(); });
     $('#joinNo').addEventListener('click', goHome);
     $('#leaveYes').addEventListener('click', goHome);
     $('#leaveNo').addEventListener('click', () => { $('#leave').hidden = true; });
-    $('#free').addEventListener('click', () => netSend({ t: 'free' }));
+    $('#free').addEventListener('click', () => {
+      if (!freeArmed) { freeArmed = true; drawAll(); return; } // the first tap only says what will happen
+      freeArmed = false;
+      netSend({ t: 'free' });
+    });
     $('#takeover').addEventListener('click', () => { net.phase = 'connecting'; drawAll(); connect(); });
     $('#inviteCopy').addEventListener('click', () => {
       const box = $('#inviteLink'), done = () => { $('#inviteCopy').textContent = 'Copied'; };
@@ -779,6 +849,12 @@
         navigator.share({ title: Brand.NAME, text: `Play ${Brand.NAME} with me`, url: $('#inviteLink').value }).catch(() => {});
       });
     }
+    window.addEventListener('storage', () => { if (!$('#home').hidden) drawHome(); }); // keep in step with other tabs
+    // A game link pasted or tapped into this already open page.
+    window.addEventListener('hashchange', () => {
+      const m = /^#g-([a-z2-9]{6})$/.exec(location.hash);
+      if (m && m[1] !== net.code && $('#game').hidden && !$('#onlineCard').hidden) openInvite(m[1]);
+    });
     window.addEventListener('online', () => { if (net.code && net.phase === 'down') { net.retry = 0; connect(); } });
     window.addEventListener('offline', () => { if (net.code && net.ws) dropped(); });
     document.addEventListener('visibilitychange', () => { if (!document.hidden) heartbeat(); }); // phones can cut a hidden page's connection
@@ -790,21 +866,7 @@
     } catch { return; }
     $('#onlineCard').hidden = false;
     drawHome();
-    if (!invite) return;
-    // Opened from a game link: check the link, then go straight in or ask for a name first.
-    const code = invite;
-    let info = null;
-    try { info = await (await fetch(`/api/room/${code}`, { cache: 'no-store' })).json(); } catch { /* treated as not valid */ }
-    if (invite !== code || $('#home').hidden) return; // the player has moved on
-    if (!info || !info.ok) {
-      invite = null;
-      setHash(null);
-      onlineError('This game link is not valid or has expired. Ask your friend for a new one, or create a game.');
-      return;
-    }
-    if (store.get('nick', '') || store.get('room', null) === code) return joinOnline(code); // a returning player goes straight in
-    $('#joinTitle').textContent = info.host ? `${info.host} invited you to play` : 'You are invited to play';
-    show('join');
+    if (invite) openInvite(invite);
   }
 
   // ---------- brand and opening screen ----------

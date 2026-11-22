@@ -11,6 +11,10 @@ const MAX_SOCKETS = 4; // per room: two players, plus one spare each while a pho
 const JOIN_WITHIN = 10 * 1000; // a connection must say who it is within this time
 const RATE_WINDOW = 10 * 1000, RATE_MAX = 25; // messages allowed per connection per window
 const REACT_GAP = 800; // milliseconds between reactions from one player
+const HARD_MAX = 32; // every connection of a room, including ones that are still closing
+// A player's page checks in every 10 seconds. After this long without a word the player counts as gone.
+// It is longer than a minute because browsers slow the timers of a page that is in the background.
+const SILENT = 75 * 1000;
 
 const json = (body, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json', 'cache-control': 'no-store' } });
@@ -73,8 +77,24 @@ export class Room extends DurableObject {
   }
 
   async fetch() {
+    if (!(await this.load()).created) {
+      // A made-up or expired code: say so and hang up, without keeping the connection or touching storage or timers.
+      const gone = new WebSocketPair();
+      gone[1].accept();
+      gone[1].send(JSON.stringify({ t: 'gone' }));
+      gone[1].close(4004, 'No such game');
+      return new Response(null, { status: 101, webSocket: gone[0] });
+    }
     this.sweep();
-    if (this.ctx.getWebSockets().length >= MAX_SOCKETS) return json({ error: 'This game has too many connections' }, 429);
+    if (this.reap(Date.now())) this.broadcast();
+    if (this.ctx.getWebSockets().length >= HARD_MAX) return json({ error: 'This game has too many connections' }, 429);
+    const open = this.live();
+    if (open.length >= MAX_SOCKETS) {
+      // Make room by dropping the oldest connection that never joined. A real page joins within milliseconds.
+      const idle = open.filter((ws) => this.seatOf(ws) === null).sort((x, y) => this.att(x).t0 - this.att(y).t0)[0];
+      if (!idle) return json({ error: 'This game has too many connections' }, 429);
+      this.shut(idle, 4000, 'No join received');
+    }
     const pair = new WebSocketPair();
     this.ctx.acceptWebSocket(pair[1]);
     pair[1].serializeAttachment({ seat: null, t0: Date.now(), w: Date.now(), n: 0 });
@@ -83,6 +103,22 @@ export class Room extends DurableObject {
     return new Response(null, { status: 101, webSocket: pair[0] });
   }
 
+  // Only open connections count. One that we closed stays listed until the other side answers.
+  live() {
+    return this.ctx.getWebSockets().filter((ws) => ws.readyState === 1);
+  }
+  // Close players' connections that have gone quiet (phone switched off, signal lost). True if any were closed.
+  reap(now) {
+    let found = false;
+    for (const ws of this.live()) {
+      const a = this.att(ws);
+      if (a.seat === null || now - (a.seen || a.t0) <= SILENT) continue;
+      ws.serializeAttachment({ ...a, seat: null, dead: true }); // no longer counts as that player
+      this.shut(ws, 4005, 'No sign of life');
+      found = true;
+    }
+    return found;
+  }
   att(ws) {
     return ws.deserializeAttachment() || { seat: null, t0: 0, w: 0, n: 0 };
   }
@@ -95,14 +131,14 @@ export class Room extends DurableObject {
   // Close connections that never said who they are.
   sweep() {
     const now = Date.now();
-    for (const ws of this.ctx.getWebSockets()) {
+    for (const ws of this.live()) {
       const a = this.att(ws);
-      if (a.seat === null && now - a.t0 > JOIN_WITHIN) this.shut(ws, 4000, 'No join received');
+      if (a.seat === null && !a.dead && now - a.t0 > JOIN_WITHIN) this.shut(ws, 4000, 'No join received');
     }
   }
 
   broadcast(leaving = null) {
-    const r = this.room, sockets = this.ctx.getWebSockets().filter((ws) => ws !== leaving);
+    const r = this.room, sockets = this.live().filter((ws) => ws !== leaving);
     const online = [0, 1].map((seat) => sockets.some((ws) => this.seatOf(ws) === seat));
     for (const ws of sockets) {
       const seat = this.seatOf(ws);
@@ -122,15 +158,18 @@ export class Room extends DurableObject {
     // A flood of messages closes the connection.
     const a = this.att(ws), now = Date.now();
     if (now - a.w > RATE_WINDOW) { a.w = now; a.n = 0; }
+    if (a.dead) return;
     a.n += 1;
+    a.seen = now;
     ws.serializeAttachment(a);
     if (a.n > RATE_MAX) return this.shut(ws, 4008, 'Too many messages');
 
     let msg;
     try { msg = JSON.parse(raw); } catch { return; }
     if (!msg || typeof msg !== 'object') return;
-    if (msg.t === 'ping') return this.send(ws, { t: 'pong' });
     const r = await this.load();
+    if (this.reap(now)) this.broadcast(); // any message is a chance to notice a player who has gone quiet
+    if (msg.t === 'ping') return this.send(ws, { t: 'pong' });
 
     if (msg.t === 'join') {
       if (a.seat !== null) return; // one join per connection
@@ -154,13 +193,14 @@ export class Room extends DurableObject {
         await this.ctx.storage.setAlarm(Date.now() + DAY);
       }
       // One connection per player: a newer tab or device takes over from the older one.
-      for (const other of this.ctx.getWebSockets()) {
+      for (const other of this.live()) {
         if (other !== ws && this.seatOf(other) === seat) {
           this.send(other, { t: 'replaced' });
+          other.serializeAttachment({ ...this.att(other), seat: null, dead: true });
           this.shut(other, 4002, 'Opened somewhere else');
         }
       }
-      ws.serializeAttachment({ ...a, seat });
+      ws.serializeAttachment({ ...a, seat, seen: now });
       this.broadcast();
       return;
     }
@@ -181,7 +221,7 @@ export class Room extends DurableObject {
     } else if (msg.t === 'react') {
       if (!Number.isInteger(msg.e) || msg.e < 0 || msg.e >= REACTIONS || now - this.lastReact[seat] < REACT_GAP) return;
       this.lastReact[seat] = now;
-      for (const other of this.ctx.getWebSockets()) if (this.seatOf(other) !== null) this.send(other, { t: 'react', seat, e: msg.e });
+      for (const other of this.live()) if (this.seatOf(other) !== null) this.send(other, { t: 'react', seat, e: msg.e });
     } else if (msg.t === 'rematch') {
       if (!this.position().over || r.rematch[seat]) return;
       r.rematch[seat] = true;
@@ -196,7 +236,7 @@ export class Room extends DurableObject {
     } else if (msg.t === 'free') {
       // The player who created the game can free the other seat to invite someone else,
       // but only while that player is away and the current game has not started.
-      const awaySeat = this.ctx.getWebSockets().every((o) => this.seatOf(o) !== 1);
+      const awaySeat = this.live().every((o) => this.seatOf(o) !== 1);
       if (seat !== 0 || !r.players[1] || !awaySeat || r.moves.length) return;
       r.players[1] = null;
       r.rematch = [false, false];
@@ -218,10 +258,10 @@ export class Room extends DurableObject {
   async alarm() {
     const r = await this.load();
     this.sweep();
-    const sockets = this.ctx.getWebSockets();
+    const sockets = this.live(); // ignore ones that are already being closed
     const now = Date.now(), idle = now - (r.touched || 0);
     if (!sockets.length && idle >= DAY - 60 * 1000) return this.ctx.storage.deleteAll();
-    const waiting = sockets.some((ws) => this.seatOf(ws) === null);
+    const waiting = sockets.some((ws) => { const a = this.att(ws); return a.seat === null && !a.dead; });
     await this.ctx.storage.setAlarm(now + (waiting ? JOIN_WITHIN : sockets.length ? DAY : Math.max(60 * 1000, DAY - idle)));
   }
 }

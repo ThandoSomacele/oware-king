@@ -95,11 +95,15 @@ async function seated(code, id, name) {
   await wait(250);
   assert.ok(big.closed, 'oversized message was accepted');
 
-  // Connection flood: the room accepts only a few connections
+  // Connection flood: silent connections are dropped to make room, and a real player can always get in
   const code2 = await newRoom();
-  const many = Array.from({ length: 12 }, () => client(code2));
-  const opened = (await Promise.allSettled(many.map((m) => m.open))).filter((r) => r.status === 'fulfilled').length;
-  assert.ok(opened <= 4, `room accepted ${opened} connections`);
+  const many = [];
+  for (let k = 0; k < 12; k++) { const m = client(code2); await m.open.catch(() => {}); many.push(m); }
+  await wait(300);
+  const stillOpen = many.filter((m) => m.ws.readyState === 1).length;
+  assert.ok(stillOpen <= 4, `room kept ${stillOpen} silent connections open`);
+  const honest = await seated(code2, 'player-eeeeeeee', 'Efua');
+  assert.ok(honest.last('state'), 'a real player was locked out by silent connections');
   many.forEach((m) => { try { m.ws.close(); } catch {} });
 
   // The creator can free the other seat only before the game starts and only when that player is away
