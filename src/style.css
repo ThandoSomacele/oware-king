@@ -138,10 +138,9 @@ main { display: flex; flex-direction: column; gap: 20px; }
 
 
 
-/* Inlaid woven strip between the two rows of pits */
+/* A simple carved line between the two rows of pits */
 .board { position: relative; }
-.inlay { position: absolute; left: 22px; right: 22px; top: 50%; height: 6px; margin-top: -4px; border-radius: 3px; overflow: hidden; opacity: 0.85; line-height: 0; pointer-events: none; }
-.inlay svg { width: 100%; height: 100%; display: block; }
+.inlay { position: absolute; left: 22px; right: 22px; top: 50%; height: 2px; margin-top: -2px; border-radius: 1px; background: rgba(40, 20, 5, 0.55); box-shadow: 0 1px 0 rgba(255, 255, 255, 0.18); pointer-events: none; }
 
 /* Opening screen: a 160 x 284 pixel-art canvas, scaled up with hard pixel edges */
 #intro { position: fixed; inset: 0; z-index: 50; background: #0e0c20; display: flex; align-items: center; justify-content: center; padding: 0; border: 0; border-radius: 0; width: 100%; overflow: hidden; cursor: pointer; transition: opacity 0.35s; }

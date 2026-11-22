@@ -148,7 +148,6 @@
     }
     const inlay = document.createElement('span');
     inlay.className = 'inlay';
-    inlay.innerHTML = Brand.band('stripe', 6, 120);
     boardEl.appendChild(inlay);
   }
 

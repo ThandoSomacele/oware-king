@@ -31,6 +31,7 @@
 ## Borders and bands
 - Borders are rows of round Oware seeds, each lit from the top left, in gold, cream, green and red earth.
 - Do not use square block or brick patterns: they make the game look like a toy-brick game.
+- The game board itself is smooth carved wood, not pixel art: pixel art is for the title screen, logo and seed borders only. A plain carved line separates the two rows of pits.
 - All patterns are original. They are not copies of named Kente cloths or Adinkra symbols. Ghana's copyright law treats those as protected folklore, and commercial use can need permission. Get legal advice before using a real one.
 
 ## Title screen
