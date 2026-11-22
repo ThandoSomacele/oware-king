@@ -5,8 +5,8 @@ Oware, the West African sowing game, as one small web page that runs on phones, 
 **Live game:** https://oware-king.oware-king.workers.dev
 
 - `src/engine.js`: the rules, the computer player and the daily puzzle. No screen code. The game server uses the same file.
-- `src/pixel.js`: all the artwork, drawn in code: title screen, logo, board, seeds, digits, rings and app icon.
-- `src/brand.js`: the game's name.
+- `src/pixel.js`: the pixel-art title screen and logo, drawn in code.
+- `src/brand.js`: the app icon and seed bands, drawn in code.
 - `src/app.js`, `src/style.css`, `src/index.html`: the screens, animation, sounds and online play.
 - `server/worker.js`: the online game server (Cloudflare Workers). One room per game link; it checks every move.
 - `wrangler.jsonc`: Cloudflare settings.
