@@ -132,47 +132,93 @@
   }
 
   // ---------- board ----------
+  // The board is one pixel-art picture. The 12 pit buttons sit on top of it, and each pit's seeds
+  // and number are small canvases. `L` is the layout in art pixels; `px` is screen pixels per art pixel.
+  const dpr = window.devicePixelRatio || 1;
   const boardEl = $('#board'), pitEls = [];
+  let L = null, px = 1, boardFlip = false, layoutDue = false;
+  const css = (artPixels) => `${Math.round(artPixels * px) / dpr}px`; // art pixels to CSS, on whole screen pixels
+  const sized = (cv, k = 1) => { cv.style.width = css(cv.width * k); cv.style.height = css(cv.height * k); return cv; };
+  const copy = (art) => { const cv = document.createElement('canvas'); cv.width = art.width; cv.height = art.height; cv.getContext('2d').drawImage(art, 0, 0); return cv; };
+
   // flip = true puts pits 6-11 on the bottom row, for the second online player.
-  function buildBoard(flip = false) {
+  function buildBoard(flip = boardFlip) {
+    boardFlip = flip;
+    const avail = Math.min(560, document.querySelector('.app').clientWidth || 328) * dpr;
+    px = Math.max(1, Math.floor(avail / 158)); // whole screen pixels per art pixel: sharp, even pixels
+    L = Pixel.board(Math.floor(avail / px));
+    document.documentElement.style.setProperty('--u', `${px / dpr}px`);
     boardEl.replaceChildren();
+    boardEl.style.width = css(L.W);
+    boardEl.style.height = css(L.H);
+    L.canvas.className = 'plank';
+    boardEl.appendChild(L.canvas);
+    const rings = { can: '#ffd75a', lift: '#fdf0dc', taken: '#fff3b0', best: '#4fd09b' };
+    for (const k of Object.keys(rings)) boardEl.style.setProperty(`--ring-${k}`, `url(${Pixel.ring(L.PIT, rings[k])})`);
+    boardEl.style.setProperty('--ring-wrong', `url(${Pixel.ring(L.PIT, '#ff8076', true)})`);
     const order = flip ? [5, 4, 3, 2, 1, 0, 6, 7, 8, 9, 10, 11] : [11, 10, 9, 8, 7, 6, 0, 1, 2, 3, 4, 5];
     for (const [n, i] of order.entries()) {
+      const top = n < 6, y0 = top ? 0 : L.yBot - 4; // each button covers its pit, its number and half the gaps
       const b = document.createElement('button');
       b.type = 'button';
-      b.className = 'pit ' + (n < 6 ? 'north' : 'south');
-      b.innerHTML = '<span class="bowl"><span class="seeds"></span></span><span class="count"></span>';
+      b.className = 'pit ' + (top ? 'north' : 'south');
+      b.style.left = css(L.x0 + (n % 6) * (L.PIT + L.GAP) - L.GAP / 2);
+      b.style.top = css(y0);
+      b.style.width = css(L.PIT + L.GAP);
+      b.style.height = css(top ? L.yTop + L.PIT + 4 : L.H - y0);
+      b.innerHTML = `<span class="bowl"><i class="ring"></i><canvas class="seeds" width="${L.PIT}" height="${L.PIT}"></canvas></span><canvas class="num"></canvas><span class="count sr"></span>`;
+      const bowl = b.querySelector('.bowl');
+      bowl.style.left = css(L.GAP / 2);
+      bowl.style.top = css((top ? L.yTop : L.yBot) - y0);
+      bowl.style.width = bowl.style.height = css(L.PIT);
+      b.querySelector('.num').style.top = css((top ? L.countTop : L.countBot) - y0);
       b.addEventListener('click', () => onPit(i));
       boardEl.appendChild(b);
       pitEls[i] = b;
     }
-    const inlay = document.createElement('span');
-    inlay.className = 'inlay';
-    inlay.innerHTML = Brand.band('stripe', 6, 120);
-    boardEl.appendChild(inlay);
-  }
-
-  function seedsHTML(n, i) {
-    const shown = Math.min(n, 30);
-    const size = n <= 5 ? 26 : n <= 10 ? 21 : n <= 16 ? 17 : 14;
-    let h = '';
-    for (let k = 0; k < shown; k++) {
-      const r = shown === 1 ? 0 : 36 * Math.sqrt((k + 0.5) / Math.max(shown, 4));
-      const a = k * 2.39996 + i * 0.7;
-      h += `<i class="seed s${(k + i) % 3}" style="left:${(50 + r * Math.cos(a)).toFixed(1)}%;top:${(50 + r * Math.sin(a)).toFixed(1)}%;width:${size}%"></i>`;
-    }
-    return h;
+    drawScore($('#scoreTop'));
+    drawScore($('#scoreBottom'));
   }
 
   function drawPit(i) {
     const n = view[i], el = pitEls[i];
-    el.querySelector('.seeds').innerHTML = seedsHTML(n, i);
-    el.querySelector('.count').textContent = n;
+    Pixel.pile(el.querySelector('.seeds'), n, i);
+    const art = Pixel.number(n, '#fdf0dc', null, '#2b1605'), num = el.querySelector('.num'); // dark wood outline
+    num.width = art.width;
+    num.height = art.height;
+    num.getContext('2d').drawImage(art, 0, 0);
+    sized(num).style.left = css((L.PIT + L.GAP - art.width) / 2);
+    el.querySelector('.count').textContent = n; // read by screen readers and tests
     el.setAttribute('aria-label', `Pit ${(i % 6) + 1}, ${n} seed${n === 1 ? '' : 's'}`);
   }
 
+  // The scores keep their real text (hidden) and show it as large pixel digits.
+  function drawScore(el) {
+    const art = Pixel.number(parseInt(el.textContent, 10) || 0, '#fdf0dc', null, null);
+    el.style.width = css(art.width * 3);
+    el.style.height = css(art.height * 3);
+    el.style.backgroundImage = `url(${art.toDataURL()})`;
+  }
+  for (const id of ['#scoreTop', '#scoreBottom']) {
+    new MutationObserver(() => drawScore($(id))).observe($(id), { childList: true, characterData: true, subtree: true });
+  }
+
+  // Redraw the board at the new size after a resize or rotation, but never in the middle of a move.
+  function relayout() {
+    layoutDue = false;
+    const marks = pitEls.map((el) => ['best', 'wrong'].filter((c) => el.classList.contains(c)));
+    buildBoard();
+    marks.forEach((list, i) => list.forEach((c) => pitEls[i].classList.add(c)));
+    if (state) drawAll();
+  }
+  let resizeTimer = 0;
+  window.addEventListener('resize', () => {
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(() => { if (locked || net.busy) layoutDue = true; else relayout(); }, 150);
+  });
+
   // ---------- seeds in flight ----------
-  // The "hand" is the group of seeds that was picked up. It hops from pit to pit and drops one seed at each stop.
+  // The "hand" is a small dish with the seeds that were picked up. It hops from pit to pit and drops one seed at each stop.
   const fx = $('#fx');
   const bowlOf = (i) => pitEls[i].querySelector('.bowl');
   // Positions are measured from the #fx layer, which scrolls with the page.
@@ -183,12 +229,16 @@
   const at = (el, p, scale) => `translate(${p.x - el.offsetWidth / 2}px, ${p.y - el.offsetHeight / 2}px) scale(${scale})`;
 
   function setHand(hand, n, i) {
-    hand.innerHTML = `<span class="seeds">${seedsHTML(n, i)}</span><b>${n}</b>`;
+    Pixel.pile(hand.firstChild, n, i, true);
+    const badge = sized(copy(Pixel.number(n, '#2b1605', '#ffd75a')));
+    badge.className = 'badge';
+    hand.replaceChild(badge, hand.lastChild);
   }
   function makeHand(n, i, p) {
     const hand = document.createElement('div');
     hand.className = 'hand';
-    hand.style.width = hand.style.height = p.w * 0.92 + 'px';
+    hand.innerHTML = `<canvas class="seeds" width="${L.PIT + 4}" height="${L.PIT + 4}"></canvas><canvas class="badge"></canvas>`;
+    hand.style.width = hand.style.height = css(L.PIT + 4);
     setHand(hand, n, i);
     fx.appendChild(hand);
     hand.style.transform = at(hand, p, 1.12);
@@ -365,6 +415,7 @@
     state = res.state;
     view = state.pits.slice();
     locked = false;
+    if (layoutDue) relayout();
     if (mode === 'daily') return finishDaily(rec, id);
     drawAll();
     if (state.over) {
@@ -871,7 +922,6 @@
 
   // ---------- brand and opening screen ----------
   // The header logo is drawn at a whole number of screen pixels per art pixel, so it stays sharp.
-  const dpr = window.devicePixelRatio || 1;
   const logoArt = Pixel.logoCanvas(3), logoK = Math.max(1, Math.round(dpr));
   const headerLogo = document.createElement('canvas');
   headerLogo.width = logoArt.width * logoK;
@@ -884,7 +934,30 @@
   headerLogo.setAttribute('role', 'img');
   headerLogo.setAttribute('aria-label', Brand.NAME);
   $('#brand').appendChild(headerLogo);
-  $('#weave').innerHTML = Brand.seedBand();
+  // A row of pixel seeds under the header, two art pixels to one (rounded) screen pixel pair.
+  const bandArt = Pixel.band(300), bandCv = document.createElement('canvas'), bandK = 2 * logoK;
+  bandCv.width = bandArt.width * bandK;
+  bandCv.height = bandArt.height * bandK;
+  const bctx = bandCv.getContext('2d');
+  bctx.imageSmoothingEnabled = false;
+  bctx.drawImage(bandArt, 0, 0, bandCv.width, bandCv.height);
+  bandCv.style.width = bandCv.width / dpr + 'px';
+  bandCv.style.height = bandCv.height / dpr + 'px';
+  $('#weave').appendChild(bandCv);
+  // The page icon (browser tab, home screen shortcut) is the pixel app icon, enlarged with hard edges.
+  try {
+    const iconArt = Pixel.icon(), big = document.createElement('canvas');
+    big.width = big.height = 192;
+    const ictx = big.getContext('2d');
+    ictx.imageSmoothingEnabled = false;
+    ictx.drawImage(iconArt, 0, 0, 192, 192);
+    for (const rel of ['icon', 'apple-touch-icon']) {
+      const link = document.createElement('link');
+      link.rel = rel;
+      link.href = big.toDataURL('image/png');
+      document.head.appendChild(link);
+    }
+  } catch { /* the page works without an icon */ }
 
   // The title screen covers the page from the first paint (see index.html) and is skipped on return visits.
   function intro() {

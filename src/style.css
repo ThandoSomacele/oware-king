@@ -38,7 +38,7 @@ body {
 .app { max-width: 560px; margin: 0 auto; display: flex; flex-direction: column; gap: 20px; }
 h1, h2, p, ol { margin: 0; }
 h1, h2 { font-family: var(--display); }
-.pts, .streak-n, .count, .hand b { font-family: var(--display); }
+.streak-n { font-family: var(--display); }
 h1 { font-size: clamp(2rem, 9vw, 2.75rem); font-weight: 800; line-height: 1.02; letter-spacing: -0.02em; text-wrap: balance; }
 h2 { font-size: 1.125rem; font-weight: 600; }
 .small, small { font-size: 0.875rem; color: var(--muted); }
@@ -57,8 +57,8 @@ button:focus-visible, .seg input:focus-visible + label, summary:focus-visible { 
 
 main { display: flex; flex-direction: column; gap: 20px; }
 .hero { display: flex; flex-direction: column; gap: 12px; }
-.weave { height: 24px; border-radius: 6px; overflow: hidden; line-height: 0; }
-.weave svg { width: 100%; height: 100%; display: block; }
+.weave { overflow: hidden; line-height: 0; }
+.weave canvas { display: block; }
 .lede { color: var(--muted); max-width: 46ch; }
 
 .daily {
@@ -93,40 +93,33 @@ main { display: flex; flex-direction: column; gap: 20px; }
 .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--line); }
 .bar.turn .who { color: var(--ink); }
 .bar.turn .dot { background: var(--accent); box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 30%, transparent); }
-.pts { display: inline-block; font-size: 2.25rem; font-weight: 800; line-height: 1; font-variant-numeric: tabular-nums; }
+.pts { display: inline-block; font-size: 0; color: transparent; background: center / 100% 100% no-repeat; } /* the number is drawn as pixel digits; the text stays for screen readers */
 .pts small { font: 600 0.875rem var(--body); color: var(--muted); }
 
-.board {
-  /* Carved wood: grain is generated noise stretched along the board, over a lit-from-above base. */
-  background:
-    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='640' height='320'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.006 0.19' numOctaves='4' seed='11'/%3E%3CfeColorMatrix values='0 0 0 0 0.13  0 0 0 0 0.06  0 0 0 0 0.02  1.5 0 0 0 -0.42'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url%28%23g%29'/%3E%3C/svg%3E") center / cover,
-    linear-gradient(180deg, var(--board-hi) 0%, var(--board) 30%, var(--board-edge) 100%);
-  box-shadow: inset 0 2px 0 rgba(255, 255, 255, 0.22), inset 0 -5px 0 rgba(0, 0, 0, 0.28), 0 10px 22px rgba(40, 20, 5, 0.28);
-  border-radius: 28px; padding: 16px 10px 18px;
-  display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 18px 6px;
-}
-.pit { background: none; border-radius: 16px; padding: 0; display: flex; flex-direction: column; align-items: center; gap: 4px; color: var(--on-board); }
-.pit.north { flex-direction: column-reverse; }
-.bowl { width: 100%; aspect-ratio: 1; border-radius: 50%; background: radial-gradient(circle at 50% 62%, var(--bowl-hi) 0%, var(--bowl) 62%, var(--bowl-lo) 100%); position: relative; display: block; box-shadow: inset 0 5px 6px rgba(0, 0, 0, 0.5), 0 1px 0 rgba(255, 255, 255, 0.25); transition: box-shadow 0.15s; }
-.seeds { position: absolute; inset: 0; display: block; }
-.seed { position: absolute; aspect-ratio: 1; border-radius: 50%; transform: translate(-50%, -50%); background: var(--seed-a); box-shadow: inset -1px -2px 0 rgba(0, 0, 0, 0.16); }
-.seed.s1 { background: var(--seed-b); }
-.seed.s2 { background: var(--seed-c); }
-.count { text-shadow: 0 1px 1px rgba(40, 20, 5, 0.6); font: 600 0.9375rem/1 var(--display); font-variant-numeric: tabular-nums; opacity: 0.92; }
-.pit.can .bowl { box-shadow: inset 0 5px 6px rgba(0, 0, 0, 0.5), 0 0 0 3px var(--seed-c), 0 0 0 5px rgba(40, 20, 5, 0.45); }
-.pit.can .count { opacity: 1; color: var(--seed-c); }
+/* The board is pixel art drawn by src/pixel.js. --u is the CSS size of one art pixel. */
+.board { position: relative; margin: 0 auto; }
+.board canvas, .hand canvas, .pts, .ring, .weave canvas { image-rendering: pixelated; image-rendering: crisp-edges; image-rendering: pixelated; }
+.plank { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+.pit { position: absolute; background: none; border-radius: 6px; padding: 0; }
 .pit:not(.can) { cursor: default; }
-.pit.lift .bowl { box-shadow: 0 0 0 3px var(--on-board); }
-.pit.pulse .bowl { animation: pulse 0.22s ease-out; }
-.pit.taken .bowl { box-shadow: 0 0 0 4px var(--seed-c); animation: taken 0.5s ease-in-out; }
-.pit.best .bowl { box-shadow: 0 0 0 4px var(--ring-good), 0 0 0 6px rgba(30, 15, 4, 0.55); }
-.pit.wrong .bowl { outline: 4px dashed var(--ring-bad); outline-offset: 0; }
+.bowl { position: absolute; display: block; }
+.seeds { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+.num { position: absolute; display: block; }
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+.ring { position: absolute; inset: calc(var(--u) * -4); background: center / 100% 100% no-repeat; pointer-events: none; }
+.pit.can .ring { background-image: var(--ring-can); }
+.pit.lift .ring { background-image: var(--ring-lift); }
+.pit.taken .ring { background-image: var(--ring-taken); }
+.pit.best .ring { background-image: var(--ring-best); }
+.pit.wrong .ring { background-image: var(--ring-wrong); }
+.pit.pulse .seeds { animation: pulse 0.22s ease-out; }
+.pit.taken .bowl { animation: taken 0.5s ease-in-out; }
 #fx { position: absolute; left: 0; top: 0; width: 0; height: 0; pointer-events: none; z-index: 20; }
-.hand { position: absolute; left: 0; top: 0; border-radius: 50%; background: var(--hand); box-shadow: 0 0 0 2px var(--seed-c), 0 10px 18px rgba(0, 0, 0, 0.35); will-change: transform; }
-.hand .seeds { position: absolute; inset: 0; }
-.hand b { position: absolute; right: -6px; top: -6px; min-width: 22px; height: 22px; padding: 0 5px; border-radius: 11px; background: var(--seed-c); color: var(--accent-ink); font: 700 0.875rem/22px var(--display); text-align: center; font-variant-numeric: tabular-nums; }
+.hand { position: absolute; left: 0; top: 0; will-change: transform; }
+.hand .seeds { position: static; }
+.hand .badge { position: absolute; right: calc(var(--u) * -3); top: calc(var(--u) * -3); display: block; }
 .pts.bump { animation: bump 0.3s ease-out; }
-@keyframes bump { from { transform: scale(1.35); color: var(--accent); } to { transform: scale(1); } }
+@keyframes bump { from { transform: scale(1.35); } to { transform: scale(1); } }
 @keyframes pulse { from { transform: scale(1.12); } to { transform: scale(1); } }
 @keyframes taken { 50% { transform: scale(0.86); } }
 
@@ -137,11 +130,6 @@ main { display: flex; flex-direction: column; gap: 20px; }
 #shareText { width: 100%; font: 400 0.875rem/1.4 var(--body); border: 1px solid var(--line); border-radius: 12px; padding: 10px; background: var(--bg); color: var(--ink); resize: none; }
 
 
-
-/* Inlaid woven strip between the two rows of pits */
-.board { position: relative; }
-.inlay { position: absolute; left: 22px; right: 22px; top: 50%; height: 6px; margin-top: -4px; border-radius: 3px; overflow: hidden; opacity: 0.85; line-height: 0; pointer-events: none; }
-.inlay svg { width: 100%; height: 100%; display: block; }
 
 /* Opening screen: a 160 x 284 pixel-art canvas, scaled up with hard pixel edges */
 #intro { position: fixed; inset: 0; z-index: 50; background: #0e0c20; display: flex; align-items: center; justify-content: center; padding: 0; border: 0; border-radius: 0; width: 100%; overflow: hidden; cursor: pointer; transition: opacity 0.35s; }
