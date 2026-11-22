@@ -213,4 +213,10 @@ main { display: flex; flex-direction: column; gap: 20px; }
 .board.fixed .count { position: absolute; left: 0; display: block; text-align: center; }
 .board.fixed .inlay { left: 22px; right: 22px; margin-top: 0; }
 
+/* Sending a TV game's link from a phone */
+.sendlink { font: 600 1rem/1.4 var(--body); color: var(--accent); word-break: break-all; background: var(--bg); border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; width: 100%; }
+.btnlink { display: inline-block; text-decoration: none; text-align: center; line-height: 1; border-radius: 999px; }
+.ghost.inline { padding: 0; font-size: inherit; color: var(--accent); text-decoration: underline; }
+.tv #inviteText { font-size: 1.125rem; text-align: center; }
+
 @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }

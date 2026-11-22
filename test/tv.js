@@ -33,6 +33,24 @@ const path = require('node:path');
   if (!/^https?:\/\/[^#]+\/#g-[a-z2-9]{6}$/.test(link)) errors.push('TV: bad invite link ' + link);
   await tv.screenshot({ path: process.argv[2] ? process.argv[2] + '/tv-invite.png' : '/dev/null' }).catch(() => {});
 
+  // The TV shows the link as text too.
+  const shown = await tv.textContent('#inviteText');
+  if (!link.endsWith(shown.trim())) errors.push('TV: link text missing or wrong: ' + shown);
+
+  // The TV owner's own phone scans the code. It must get the "send to a friend" page and must NOT take the seat,
+  // even though this phone has played before (it has a saved name).
+  const owner = await (await browser.newContext({ viewport: { width: 390, height: 844 } })).newPage();
+  owner.on('pageerror', (e) => errors.push('owner phone: ' + e));
+  await owner.addInitScript(() => { try { sessionStorage.setItem('oware.intro', '1'); localStorage.setItem('oware.nick', '"Owner"'); } catch {} });
+  await owner.goto(link.replace('#g-', '#s-'));
+  await owner.waitForSelector('#send:not([hidden])', { timeout: 15000 }).catch(() => errors.push('owner phone: no "send to a friend" page'));
+  const wa = await owner.getAttribute('#sendWhatsApp', 'href');
+  if (!wa || !wa.startsWith('https://wa.me/?text=') || !decodeURIComponent(wa).includes(link)) errors.push('owner phone: WhatsApp link does not carry the game link: ' + wa);
+  if ((await owner.textContent('#sendLink')).trim() !== link) errors.push('owner phone: shown link is wrong');
+  await tv.waitForTimeout(800);
+  if (/Owner/.test(await tv.textContent('#nameTop'))) errors.push('owner phone took the seat just by scanning');
+  await owner.context().close();
+
   // A phone opens the link from the QR code and joins.
   const phone = await (await browser.newContext({ viewport: { width: 390, height: 844 } })).newPage();
   phone.on('pageerror', (e) => errors.push('phone: ' + e));

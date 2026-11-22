@@ -4,7 +4,7 @@ const { chromium } = require('playwright');
 const fs = require('node:fs'), path = require('node:path');
 const shots = path.resolve(__dirname, '../store/screenshots/tv-1920x1080');
 const img = (f) => 'data:image/png;base64,' + fs.readFileSync(path.join(shots, f)).toString('base64');
-const APP = 'Oware King  ·  com.object91.owareking  ·  v1.0.4  ·  Object91';
+const APP = 'Oware King  ·  com.object91.owareking  ·  v1.0.5  ·  Object91';
 
 const SCREENS = [
   ['1. Title screen', '1-title.png', [
@@ -32,7 +32,8 @@ const SCREENS = [
     ['Back', 'In an online game asks "Leave this game?". In other modes returns to the home screen.'],
   ]],
   ['4. Scan to join (online play)', '3-scan-to-join.png', [
-    ['QR code', 'A friend scans it with a phone camera, types a name on the phone and joins the game.'],
+    ['QR code', 'The TV owner scans it with their phone and sends the game link to a friend on WhatsApp. A friend in the room can also scan it.'],
+    ['Link', 'The game link is also shown as text under the QR code.'],
     ['Waiting for a friend', 'Changes to the friend\'s name when they join. Play then starts.'],
     ['Home', 'Leaves the game after a confirmation.'],
     ['Network', 'This is the only screen that needs an internet connection.'],

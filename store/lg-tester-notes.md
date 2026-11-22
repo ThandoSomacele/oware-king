@@ -8,7 +8,7 @@ How to test:
 3. "Play the computer": choose Easy, Medium or Hard, then "Start game". Your pits are the bottom row. Move to a pit with a gold ring and press OK. The seeds are sown one by one. Capture pits that hold two or three seeds. First to 25 wins.
 4. "Two players, one device": two people take turns with the same remote.
 5. "Play today's challenge": one position, one try.
-6. "Play a friend online" (optional, needs internet): press "Create game link". The TV shows a QR code. Scan it with a phone, type a name on the phone and join. The phone player and the TV then play each other. There is no chat, only five preset reactions.
+6. "Play a friend online" (optional, needs internet): press "Create game link". The TV shows a QR code and the game link. Scan the code with a phone: it opens a page to send the link to a friend, or to join on that phone ("Join the game here"). Type a name on the phone and join. The phone player and the TV then play each other. There is no chat, only five preset reactions.
 7. Back during a game asks "Leave this game?". Back on the home screen closes the app.
 8. The Magic Remote pointer can click every button and pit.
 

@@ -530,6 +530,7 @@
     $('#home').hidden = name !== 'home';
     $('#game').hidden = name !== 'game';
     $('#join').hidden = name !== 'join';
+    $('#send').hidden = name !== 'send';
     $('#back').hidden = name === 'home';
     sizeBowls();
     fit();
@@ -629,12 +630,16 @@
   })();
   // A game link that was opened but not joined yet. Kept here, not re-read from the address bar.
   let invite = (() => { const m = /^#g-([a-z2-9]{6})$/.exec(location.hash); return m ? m[1] : null; })();
+  // A TV game's QR code opens #s-code: a page on the TV owner's phone for sending the game link on to a friend.
+  let sendCode = (() => { const m = /^#s-([a-z2-9]{6})$/.exec(location.hash); return m ? m[1] : null; })();
   const myName = () => ($('#nick').value.trim() || $('#joinNick').value.trim()).slice(0, 16) || 'Player';
   const setHash = (code) => { try { history.replaceState(null, '', code ? `#g-${code}` : location.pathname); } catch { /* keep the address */ } };
   // '' means the site this page came from. The TV app names the server in full (see config.js).
   const api = (path) => Config.SERVER + path;
   const wsBase = () => (Config.SERVER || location.origin).replace(/^http/, 'ws');
-  const linkFor = (code) => `${Config.SERVER ? Config.SERVER + '/' : location.origin + location.pathname}#g-${code}`;
+  const pageBase = () => (Config.SERVER ? Config.SERVER + '/' : location.origin + location.pathname);
+  const linkFor = (code) => `${pageBase()}#g-${code}`;
+  const sendLinkFor = (code) => `${pageBase()}#s-${code}`;
   const netSend = (msg) => { try { if (net.ws && net.ws.readyState === 1) net.ws.send(JSON.stringify(msg)); } catch { /* the reconnect loop will recover */ } };
 
   function connect() {
@@ -774,7 +779,10 @@
     $('#reacts').hidden = !r;
     if (!r && $('#inviteLink').value !== linkFor(net.code)) {
       $('#inviteLink').value = linkFor(net.code);
-      drawQr($('#inviteQr'), linkFor(net.code));
+      // On a TV the code opens the "send to a friend" page on the owner's own phone. Elsewhere it joins directly.
+      drawQr($('#inviteQr'), isTV ? sendLinkFor(net.code) : linkFor(net.code));
+      $('#inviteText').textContent = linkFor(net.code).replace(/^https?:\/\//, '');
+      $('#inviteText').hidden = !isTV;
     }
     if (state.over && !$('#result').hidden) endOnline();
     sync();
@@ -829,6 +837,35 @@
     $('#notice').textContent = text;
     $('#notice').hidden = !text;
     if (text) window.scrollTo(0, 0);
+  }
+
+  // The QR code on a TV was scanned by the TV owner's phone: offer to send the game link to a friend.
+  async function openSend(code) {
+    sendCode = code;
+    let info = null;
+    try { info = await (await fetch(api(`/api/room/${code}`), { cache: 'no-store' })).json(); } catch { /* treated as not valid */ }
+    if (sendCode !== code || !$('#game').hidden) return; // the player has moved on
+    if (!info || !info.ok || info.full) {
+      sendCode = null;
+      setHash(null);
+      show('home');
+      notify(info && info.ok ? 'That TV game already has two players.' : 'This game link is not valid or has expired. Create a new game on the TV.');
+      return;
+    }
+    const link = linkFor(code), host = info.host || 'A friend';
+    const text = `${host} invites you to play ${Brand.NAME} on their TV. Open this link to join: ${link}`;
+    $('#sendLink').textContent = link;
+    $('#sendWhatsApp').href = `https://wa.me/?text=${encodeURIComponent(text)}`;
+    $('#sendNote').textContent = '';
+    $('#sendCopy').textContent = 'Copy link';
+    $('#sendShare').hidden = !navigator.share;
+    $('#sendShare').onclick = () => navigator.share({ title: Brand.NAME, text, url: link }).catch(() => {});
+    $('#sendCopy').onclick = () => {
+      const done = () => { $('#sendCopy').textContent = 'Copied'; $('#sendNote').textContent = 'Paste it into a message to your friend.'; };
+      try { navigator.clipboard.writeText(link).then(done, () => { $('#sendNote').textContent = 'Press and hold the link above to copy it.'; }); } catch { $('#sendNote').textContent = 'Press and hold the link above to copy it.'; }
+    };
+    $('#sendJoin').onclick = () => { sendCode = null; openInvite(code); };
+    show('send');
   }
 
   // A game link was opened: check it, then go straight in or ask for a name first.
@@ -951,8 +988,9 @@
     window.addEventListener('storage', () => { if (!$('#home').hidden) drawHome(); }); // keep in step with other tabs
     // A game link pasted or tapped into this already open page.
     window.addEventListener('hashchange', () => {
-      const m = /^#g-([a-z2-9]{6})$/.exec(location.hash);
+      const m = /^#g-([a-z2-9]{6})$/.exec(location.hash), sm = /^#s-([a-z2-9]{6})$/.exec(location.hash);
       if (m && m[1] !== net.code && $('#game').hidden && !$('#onlineCard').hidden) openInvite(m[1]);
+      else if (sm && $('#game').hidden && !$('#onlineCard').hidden) openSend(sm[1]);
     });
     window.addEventListener('online', () => { if (net.code && net.phase === 'down') { net.retry = 0; connect(); } });
     window.addEventListener('offline', () => { if (net.code && net.ws) dropped(); });
@@ -975,13 +1013,14 @@
       $('#privacyLink').replaceWith(where);
     } else $('#privacyLink').href = api('/privacy');
     if (isTV) {
-      $('#inviteTitle').textContent = 'Scan this code with a phone to join';
-      $('#inviteHint').textContent = 'Your friend plays on their phone, from anywhere.';
+      $('#inviteTitle').textContent = 'Invite a friend';
+      $('#inviteHint').textContent = 'Scan this code with your phone, then send the link to a friend on WhatsApp. They play on their phone, from anywhere.';
       $('#onlineNote').textContent = 'Create a game and a friend joins by scanning a code with their phone.';
     }
     // Installed like an app: works offline for the modes that need no server.
     if (!Config.SERVER && 'serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('/sw.js').catch(() => {});
     if (invite) openInvite(invite);
+    else if (sendCode) openSend(sendCode);
   }
 
   // ---------- big screens ----------
@@ -1010,7 +1049,7 @@
   if (isTV) document.documentElement.className += ' tv';
   const shape = (el) => (el.type === 'radio' ? document.querySelector(`label[for="${el.id}"]`) || el : el).getBoundingClientRect();
   function controls() {
-    const view = [$('#home'), $('#game'), $('#join')].find((m) => !m.hidden);
+    const view = [$('#home'), $('#game'), $('#join'), $('#send')].find((m) => !m.hidden);
     return [...document.querySelectorAll('.top button'), ...(view ? view.querySelectorAll('button, input, summary') : [])]
       .filter((el) => !el.disabled && el.offsetParent !== null && shape(el).width > 0);
   }
@@ -1020,6 +1059,7 @@
       return [$('#leaveNo'), document.querySelector('.pit.can'), $('#resultMain'), $('#resultHome'), $('#takeover'), $('#free'), $('#back')].find(shown);
     }
     if (!$('#join').hidden) return $('#joinNick');
+    if (!$('#send').hidden) return $('#sendWhatsApp');
     return [$('#playDaily'), $('#playOnline'), $('#playAi')].find(shown); // the first control on the home screen
   }
   // Scrolls just enough to show a control. (Older engines do not understand scrollIntoView options.)

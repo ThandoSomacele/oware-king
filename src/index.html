@@ -100,6 +100,21 @@
     </section>
   </main>
 
+  <main id="send" hidden>
+    <section class="online">
+      <h1>Invite a friend to your TV game</h1>
+      <p class="lede">Send this link to a friend. They open it on their phone and play against your TV, from anywhere.</p>
+      <p class="sendlink" id="sendLink"></p>
+      <div class="result-actions">
+        <a id="sendWhatsApp" class="primary btnlink" href="#" target="_blank" rel="noopener">Send on WhatsApp</a>
+        <button id="sendShare" class="secondary" type="button" hidden>Share another way</button>
+        <button id="sendCopy" class="secondary" type="button">Copy link</button>
+      </div>
+      <p class="small" id="sendNote" role="status"></p>
+      <p class="small">Want to play on this phone instead? <button id="sendJoin" class="ghost inline" type="button">Join the game here</button></p>
+    </section>
+  </main>
+
   <main id="game" hidden>
     <p class="prompt" id="prompt" hidden></p>
     <section class="invite" id="invite" hidden>
@@ -107,6 +122,7 @@
       <p class="small">The game starts when they open it.</p>
       <canvas id="inviteQr" width="1" height="1" role="img" aria-label="QR code for the game link"></canvas>
       <p class="small" id="inviteHint">Or scan this code with a phone camera.</p>
+      <p class="sendlink" id="inviteText" hidden></p>
       <input id="inviteLink" type="text" readonly aria-label="Game link">
       <div class="result-actions">
         <button id="inviteCopy" class="primary" type="button">Copy link</button>
