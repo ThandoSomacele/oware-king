@@ -199,4 +199,12 @@ main { display: flex; flex-direction: column; gap: 20px; }
 .old .pit.north > * + * { margin-top: 0; margin-bottom: 4px; }
 .old button:focus, .old input:focus, .old summary:focus, .old .seg input:focus + label { outline: 3px solid var(--accent); outline-offset: 2px; }
 
+/* TVs and older browsers: the board is placed in fixed pixels by sizeBowls() in app.js. No grid, flex or aspect-ratio. */
+.board.fixed { display: block; position: relative; padding: 0; margin: 0 auto; }
+.board.fixed .pit { position: absolute; display: block; padding: 0; margin: 0; width: auto; }
+.board.fixed .pit > * { margin: 0 !important; }
+.board.fixed .bowl { position: absolute; left: 0; display: block; padding: 0; }
+.board.fixed .count { position: absolute; left: 0; display: block; text-align: center; }
+.board.fixed .inlay { left: 22px; right: 22px; margin-top: 0; }
+
 @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }

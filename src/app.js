@@ -144,6 +144,7 @@
       const b = document.createElement('button');
       b.type = 'button';
       b.className = 'pit ' + (n < 6 ? 'north' : 'south');
+      b.dataset.slot = n; // 0-5 top row, 6-11 bottom row, left to right
       b.innerHTML = '<span class="bowl"><span class="seeds"></span></span><span class="count"></span>';
       b.addEventListener('click', () => onPit(i));
       boardEl.appendChild(b);
@@ -156,20 +157,39 @@
     sizeBowls();
   }
 
-  // Every pit is given its exact size in pixels. Older TV browsers get the size wrong when it is left to CSS.
+  // On TVs every part of the board is placed at a fixed pixel position, the way the Photo Frame TV app is built.
+  // Older TV browsers lay out grid, flex buttons and aspect-ratio wrongly, so the board does not use them there.
+  // The numbers are in the game's own pixels; fit() then enlarges the whole game to the screen.
+  const FIXED = isTV || document.documentElement.classList.contains('old');
+  const B = { W: 528, padX: 12, padTop: 14, padBottom: 18, gap: 8, rowGap: 22, num: 22, numGap: 4, side: 0 };
   let bowlSide = 0;
   function sizeBowls() {
-    const pit = pitEls[0];
-    if (!pit || !pit.clientWidth) return; // the board is not on screen yet
-    const cs = getComputedStyle(pit);
-    const side = Math.floor(pit.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight));
-    if (side <= 0 || side === bowlSide) return;
-    bowlSide = side;
+    if (!FIXED) return;
+    const app = document.querySelector('.app');
+    B.W = Math.max(280, Math.min(528, (app && app.clientWidth) || 528)); // narrow phones get a narrower board
+    B.side = Math.floor((B.W - 2 * B.padX - 5 * B.gap) / 6);
+    if (bowlSide === B.side) return;
+    bowlSide = B.side;
+    const { W, padX, padTop, padBottom, gap, rowGap, num, numGap, side } = B;
+    const pitH = side + numGap + num;
+    boardEl.classList.add('fixed');
+    boardEl.style.width = W + 'px';
+    boardEl.style.height = padTop + 2 * pitH + rowGap + padBottom + 'px';
     for (const el of pitEls) {
-      const bowl = el.querySelector('.bowl');
+      const slot = +el.dataset.slot, top = slot < 6, col = slot % 6;
+      el.style.left = padX + col * (side + gap) + 'px';
+      el.style.top = (top ? padTop : padTop + pitH + rowGap) + 'px';
+      el.style.width = side + 'px';
+      el.style.height = pitH + 'px';
+      const bowl = el.querySelector('.bowl'), count = el.querySelector('.count');
+      bowl.style.top = (top ? num + numGap : 0) + 'px';
       bowl.style.width = bowl.style.height = side + 'px';
-      bowl.style.paddingBottom = '0';
+      count.style.top = (top ? 0 : side + numGap) + 'px';
+      count.style.width = side + 'px';
+      count.style.height = count.style.lineHeight = num + 'px';
     }
+    const inlay = boardEl.querySelector('.inlay');
+    inlay.style.top = padTop + pitH + Math.round(rowGap / 2) - 1 + 'px';
     if (state) for (let i = 0; i < 12; i++) drawPit(i); // seeds are sized from the pit
   }
 
