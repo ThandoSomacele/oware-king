@@ -3,6 +3,7 @@
   const E = Engine;
   const $ = (s) => document.querySelector(s);
   const isTV = Config.TV || /Web0S|webOS|SmartTV|Tizen/i.test(navigator.userAgent); // remote-control layout
+  const YOUR_TURN = isTV ? 'Your turn. Choose a pit with a gold ring and press OK.' : 'Your turn. Tap a pit with a gold ring.';
   const DEPTH = { easy: 1, medium: 3, hard: 9 };
   const BLUNDER = { easy: 0.35, medium: 0.05, hard: 0 };
 
@@ -151,16 +152,36 @@
     const inlay = document.createElement('span');
     inlay.className = 'inlay';
     boardEl.appendChild(inlay);
+    bowlSide = 0;
+    sizeBowls();
   }
 
-  function seedsHTML(n, i) {
+  // Every pit is given its exact size in pixels. Older TV browsers get the size wrong when it is left to CSS.
+  let bowlSide = 0;
+  function sizeBowls() {
+    const pit = pitEls[0];
+    if (!pit || !pit.clientWidth) return; // the board is not on screen yet
+    const cs = getComputedStyle(pit);
+    const side = Math.floor(pit.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight));
+    if (side <= 0 || side === bowlSide) return;
+    bowlSide = side;
+    for (const el of pitEls) {
+      const bowl = el.querySelector('.bowl');
+      bowl.style.width = bowl.style.height = side + 'px';
+      bowl.style.paddingBottom = '0';
+    }
+    if (state) for (let i = 0; i < 12; i++) drawPit(i); // seeds are sized from the pit
+  }
+
+  // `ref` is the pit's size in pixels. With it, each seed gets an exact size, which every browser draws the same.
+  function seedsHTML(n, i, ref = bowlSide) {
     const shown = Math.min(n, 30);
     const size = n <= 5 ? 26 : n <= 10 ? 21 : n <= 16 ? 17 : 14;
     let h = '';
     for (let k = 0; k < shown; k++) {
       const r = shown === 1 ? 0 : 36 * Math.sqrt((k + 0.5) / Math.max(shown, 4));
       const a = k * 2.39996 + i * 0.7;
-      h += `<i class="seed s${(k + i) % 3}" style="left:${(50 + r * Math.cos(a)).toFixed(1)}%;top:${(50 + r * Math.sin(a)).toFixed(1)}%;width:${size}%;padding-bottom:${size}%"></i>`;
+      h += `<i class="seed s${(k + i) % 3}" style="left:${(50 + r * Math.cos(a)).toFixed(1)}%;top:${(50 + r * Math.sin(a)).toFixed(1)}%;${ref ? `width:${(ref * size / 100).toFixed(1)}px;height:${(ref * size / 100).toFixed(1)}px` : `width:${size}%;padding-bottom:${size}%`}"></i>`;
     }
     return h;
   }
@@ -184,7 +205,7 @@
   const at = (el, p, scale) => `translate(${p.x - el.offsetWidth / 2}px, ${p.y - el.offsetHeight / 2}px) scale(${scale})`;
 
   function setHand(hand, n, i) {
-    hand.innerHTML = `<span class="seeds">${seedsHTML(n, i)}</span><b>${n}</b>`;
+    hand.innerHTML = `<span class="seeds">${seedsHTML(n, i, parseFloat(hand.style.width) || 0)}</span><b>${n}</b>`;
   }
   function makeHand(n, i, p) {
     const hand = document.createElement('div');
@@ -250,13 +271,13 @@
     else if (!s && online && net.phase === 'down') s = 'Connection lost. Reconnecting';
     else if (!s && online && net.phase === 'replaced') s = 'This game is now open in another tab or on another device.';
     else if (!s && live) {
-      if (mode === 'ai') s = state.turn === 1 ? (thinking ? 'The computer is thinking' : 'The computer is playing') : locked ? 'Sowing your seeds' : 'Your turn. Tap a pit with a gold ring.';
+      if (mode === 'ai') s = state.turn === 1 ? (thinking ? 'The computer is thinking' : 'The computer is playing') : locked ? 'Sowing your seeds' : YOUR_TURN;
       else if (mode === 'local') s = state.turn === 0 ? 'Player 1 to play' : 'Player 2 to play';
       else if (online) {
         const r = rival();
         if (!r) s = 'Waiting for your friend to join';
         else if (net.waiting) s = 'Sending your move';
-        else if (state.turn === net.seat) s = locked ? 'Sowing your seeds' : r.online ? 'Your turn. Tap a pit with a gold ring.' : `${r.name} is offline. You can still play your move.`;
+        else if (state.turn === net.seat) s = locked ? 'Sowing your seeds' : r.online ? YOUR_TURN : `${r.name} is offline. You can still play your move.`;
         else s = r.online ? `${r.name} is playing` : `${r.name} is offline. The game waits for them.`;
       }
     }
@@ -490,6 +511,7 @@
     $('#game').hidden = name !== 'game';
     $('#join').hidden = name !== 'join';
     $('#back').hidden = name === 'home';
+    sizeBowls();
     fit();
     keepAwake(name === 'game');
     window.scrollTo(0, 0);
@@ -959,7 +981,7 @@
     document.documentElement.style.setProperty('--avail', `${Math.floor(h / z)}px`); // the screen height in the game's own units
     appEl.style.marginBottom = z === 1 ? '' : `${Math.round((z - 1) * appEl.offsetHeight)}px`; // scaling does not move what follows, so make the room by hand
   }
-  window.addEventListener('resize', fit);
+  window.addEventListener('resize', () => { sizeBowls(); fit(); });
   if (window.ResizeObserver) new ResizeObserver(fit).observe(appEl);
   else setInterval(fit, 1000); // old TV engines
 
