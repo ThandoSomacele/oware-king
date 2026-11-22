@@ -5,7 +5,8 @@ const { chromium } = require('playwright');
 const path = require('node:path'), fs = require('node:fs');
 const out = path.resolve(__dirname, '../store/screenshots');
 const WEB = 'http://127.0.0.1:8787/', TV = 'file://' + path.resolve(__dirname, '../dist-tv/index.html');
-const LIVE = 'https://oware-king.oware-king.workers.dev';
+// The address shown in the pictures: the planned final address. Remake the pictures if the plan changes.
+const LIVE = 'https://owareking.object91.co.za';
 
 // name: [width, height, pixel density, page, folder]. Sizes are the ones each store asks for.
 const DEVICES = {

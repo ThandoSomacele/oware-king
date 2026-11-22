@@ -140,6 +140,7 @@ const Pixel = (() => {
     W: ['#...#', '#...#', '#...#', '#.#.#', '#.#.#', '#.#.#', '.#.#.'],
   };
   const TINY = {
+    E: ['###', '#..', '##.', '#..', '###'], K: ['#.#', '#.#', '##.', '#.#', '#.#'],
     A: ['.#.', '#.#', '###', '#.#', '#.#'], O: ['###', '#.#', '#.#', '#.#', '###'], P: ['###', '#.#', '###', '#..', '#..'],
     R: ['##.', '#.#', '##.', '#.#', '#.#'], S: ['.##', '#..', '.#.', '..#', '##.'], T: ['###', '.#.', '.#.', '.#.', '.#.'],
   };
@@ -252,7 +253,7 @@ const Pixel = (() => {
   // The picture is composed on a 160 x 284 grid. On a larger canvas the same picture sits in the
   // middle and the sky, stars and seed borders run on to the edges.
   const AW = 160, AH = 284;
-  function title(W = AW, H = AH) {
+  function title(W = AW, H = AH, prompt = 'TAP TO START') {
     const ox = (W - AW) >> 1, oy = (H - AH) >> 1;
     const mapScale = 1.62, mapX = 23 + ox, mapY = 22 + oy, cx = mapX + 35 * mapScale + 2, cy = mapY + 34 * mapScale;
     const land = landMap(mapX, mapY, mapScale, W, H);
@@ -300,9 +301,9 @@ const Pixel = (() => {
     drawWord(logo, 'KING', 26, 46, 5, 3, RAMPS.cream, hex('#d2532f'));
     const stripe = buf(112, 7);
     seedRow(stripe, 3, 2, 8);
-    const tap = buf(97, 13);
-    for (let dy = 0; dy <= 3; dy++) for (let dx = 0; dx <= 3; dx++) tiny(tap, 'TAP TO START', dx, dy, OUTLINE, 2); // outline and shadow
-    tiny(tap, 'TAP TO START', 1, 1, hex('#fdf0dc'), 2);
+    const tap = buf(prompt.length * 8 + 1, 13);
+    for (let dy = 0; dy <= 3; dy++) for (let dx = 0; dx <= 3; dx++) tiny(tap, prompt, dx, dy, OUTLINE, 2); // outline and shadow
+    tiny(tap, prompt, 1, 1, hex('#fdf0dc'), 2);
 
     return {
       W, H, ox, oy, stars, ghana: land.ghana.map(Math.round),
@@ -356,7 +357,7 @@ const Pixel = (() => {
     if (t > 1100) ctx.drawImage(T.logo, 0, 0, AW, 44, T.ox, T.oy + 150 + drop(1100), AW, 44);
     if (t > 1450) ctx.drawImage(T.logo, 0, 44, AW, 52, T.ox, T.oy + 194 + drop(1450), AW, 52);
     if (t > 1900) ctx.drawImage(T.stripe, T.ox + 24, T.oy + 242);
-    if (t > 2200 && (!Number.isFinite(t) || Math.floor(t / 520) % 2 === 0)) ctx.drawImage(T.tap, T.ox + 32, T.oy + 254);
+    if (t > 2200 && (!Number.isFinite(t) || Math.floor(t / 520) % 2 === 0)) ctx.drawImage(T.tap, T.ox + Math.round((AW - T.tap.width) / 2), T.oy + 254);
   }
 
   // ---------- app icon ----------

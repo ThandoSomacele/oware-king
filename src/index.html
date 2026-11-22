@@ -1,6 +1,14 @@
 <title>Oware King</title>
 <meta name="claude:viewport-fit-sides" content="cover">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Figtree:wght@400;600&display=swap">
+<script>
+// The fonts load without holding up the game: with a dead or slow connection the game starts at once in the device's own font.
+(function () {
+  var l = document.createElement('link');
+  l.rel = 'stylesheet';
+  l.href = 'https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Figtree:wght@400;600&display=swap';
+  document.head.appendChild(l);
+})();
+</script>
 <style>
 /*CSS*/
 </style>
@@ -38,7 +46,7 @@
 
     <section class="online" id="onlineCard" hidden>
       <h2 id="onlineTitle">Play a friend online</h2>
-      <p class="small" id="onlineNote">Create a game, send the link on WhatsApp, and play from anywhere.</p>
+      <p class="small" id="onlineNote">Create a game, send the link to a friend, and play from anywhere.</p>
       <label class="field" for="nick">Your name
         <input id="nick" type="text" maxlength="16" autocomplete="nickname" placeholder="Player">
       </label>

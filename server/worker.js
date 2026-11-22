@@ -63,17 +63,24 @@ const VERSION = (h >>> 0).toString(36);
 // Runs inside the player's browser. It keeps a copy of the game page so the game opens with no connection.
 const SERVICE_WORKER = `
 const CACHE = 'oware-king-${VERSION}';
-self.addEventListener('install', (e) => { e.waitUntil(caches.open(CACHE).then((c) => c.add('/')).then(() => self.skipWaiting())); });
+const PAGES = ['/', '/privacy'];
+self.addEventListener('install', (e) => { e.waitUntil(caches.open(CACHE).then((c) => c.addAll(PAGES)).then(() => self.skipWaiting())); });
 self.addEventListener('activate', (e) => {
   e.waitUntil(caches.keys().then((keys) => Promise.all(keys.filter((k) => k !== CACHE).map((k) => caches.delete(k)))).then(() => self.clients.claim()));
 });
 self.addEventListener('fetch', (e) => {
   const url = new URL(e.request.url);
-  if (e.request.method !== 'GET' || url.origin !== location.origin || url.pathname !== '/') return; // only the game page; the server answers the rest
-  e.respondWith(fetch(e.request).then((res) => {
-    if (res.ok) { const copy = res.clone(); caches.open(CACHE).then((c) => c.put('/', copy)); }
+  if (e.request.method !== 'GET' || url.origin !== location.origin || !PAGES.includes(url.pathname)) return; // only the two pages; the server answers the rest
+  // Newest page first. With no answer in 4 seconds, or an error page, use the saved copy.
+  const fresh = fetch(e.request).then((res) => {
+    if (!res.ok) throw new Error('bad answer');
+    const copy = res.clone();
+    caches.open(CACHE).then((c) => c.put(url.pathname, copy));
     return res;
-  }).catch(() => caches.match('/')));
+  });
+  const saved = caches.match(url.pathname);
+  const slow = new Promise((resolve) => setTimeout(resolve, 4000)).then(() => saved);
+  e.respondWith(Promise.race([fresh, slow.then((r) => r || fresh)]).catch(() => saved.then((r) => r || fetch(e.request))));
 });
 `;
 
@@ -97,7 +104,7 @@ export default {
       if (request.headers.get('Upgrade') !== 'websocket') return json({ error: 'Expected a WebSocket' }, 426);
       return stub.fetch(request);
     }
-    if (request.method === 'GET') {
+    if (request.method === 'GET' || request.method === 'HEAD') {
       switch (url.pathname) {
         case '/': case '/index.html': return html(page);
         case '/privacy': return html(privacy);

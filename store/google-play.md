@@ -4,6 +4,8 @@ The Android app is a thin wrapper that opens the live game full screen (a "Trust
 
 Before you start: settle the web address (`domain.md`). You need a Google Play developer account (once-off fee, 25 US dollars).
 
+Check the account type first: Play Console, Settings, Developer account, Account details. It is either Personal or Organisation. Part 3 differs for the two.
+
 ## Part 1: Make the package
 
 1. Open https://www.pwabuilder.com in a browser.
@@ -25,7 +27,7 @@ The folder holds the app (`.aab`), a signing key (`signing.keystore`) and its pa
 2. Copy the long value after `sha256_cert_fingerprints`. It is a public fingerprint, not a secret.
 3. Send it to me. I add it to the game server, so the app opens without a browser bar.
 
-After the first upload, Google Play shows a second fingerprint (Play Console, your app, "App integrity", "App signing key certificate", SHA-256). Send me that one too.
+This fingerprint is for the file you made. Google Play signs the app again with its own key, so there is a second fingerprint. You get it in Part 3, step 8.
 
 ## Part 3: Publish
 
@@ -36,8 +38,16 @@ After the first upload, Google Play shows a second fingerprint (Play Console, yo
 5. Upload phone screenshots from `screenshots/phone-1080x1920/`, and tablet screenshots from the two tablet folders.
 6. Complete "App content": privacy policy link, no ads, content rating questionnaire, target audience, data safety. Use the answers in `listing.md`.
 7. Go to "Testing", "Internal testing". Create a release and upload the `.aab` file.
-8. Add your own email as a tester and install the app on your phone from the test link.
-9. Check that the game opens full screen with no address bar, and that online play works.
-10. When it is good, create a "Production" release with the same file and send it for review.
+8. Open "Test and release", "App integrity", then "App signing". Copy the SHA-256 value under "App signing key certificate".
+9. Send it to me. Wait until I say it is live on the game server.
+10. Add your own email as a tester and install the app on your phone from the test link.
+11. Check that the game opens full screen with no address bar, and that online play works. If there is an address bar, uninstall the app, clear Chrome's storage for the game's address, and install again.
+12. If the account type is Organisation: when it is good, create a "Production" release with the same file and send it for review.
 
-Google requires new personal developer accounts to run a closed test with at least 12 testers for 14 days before production. A company account does not have this rule. Check which type the Object91 account is.
+If the account type is Personal (created after 13 November 2023), Google locks "Production" until a closed test is done. The internal test above does not count. Do this instead of step 12:
+
+1. Go to "Testing", "Closed testing". Create a release on the closed track and upload the same `.aab` file.
+2. Add at least 12 testers by email (Google accounts). Send them the opt-in link. Each one must accept and install the app.
+3. Keep at least 12 testers opted in for 14 days in a row.
+4. After 14 days, open the app's Dashboard and select "Apply for production access". Answer the questions about the test.
+5. When Google approves, create a "Production" release with the same file and send it for review.

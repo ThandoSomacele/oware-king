@@ -13,21 +13,27 @@ Warning: Apple sometimes rejects apps that are only a website in a wrapper (guid
 3. Set Bundle ID to `com.object91.owareking`. Set App name to `Oware King`.
 4. Select "Download" and unzip the file on your Mac.
 
-## Part 2: Build and upload
+## Part 2: Create the app record
 
-1. Follow the `next-steps` file in the folder to open the project in Xcode.
+1. Sign in to App Store Connect (https://appstoreconnect.apple.com).
+2. Select "Apps", then "+", then "New App". Platform iOS, name Oware King, bundle ID `com.object91.owareking`, SKU `owareking`.
+3. If the bundle ID is not in the list, first register it at https://developer.apple.com/account under "Certificates, Identifiers & Profiles", then "Identifiers". Then repeat step 2.
+
+## Part 3: Build and upload
+
+1. Follow the `next-steps` file in the folder to open the project in Xcode. If it tells you to run `pod install`, open the `.xcworkspace` file afterwards, not the `.xcodeproj` file.
 2. In Xcode, select the project, then "Signing & Capabilities". Select the Object91 team.
 3. Connect an iPhone and select Run. Check that the game opens and that online play works.
 4. Select "Product", then "Archive".
 5. In the window that opens, select "Distribute App", then "App Store Connect", then "Upload".
 
-## Part 3: Publish
+## Part 4: Publish
 
-1. Sign in to App Store Connect (https://appstoreconnect.apple.com).
-2. Select "My Apps", then "+", then "New App". Platform iOS, name Oware King, bundle ID `com.object91.owareking`.
-3. Enter the text from `listing.md`.
-4. Upload screenshots from `screenshots/iphone67-1290x2796/` and `screenshots/ipad129-2048x2732/`.
-5. Answer the "App Privacy" questions with the answers in `listing.md`.
+1. In App Store Connect, open "Apps", then Oware King.
+2. Enter the text from `listing.md`.
+3. Upload the pictures in `screenshots/iphone67-1290x2796/` under the largest iPhone display size, and the pictures in `screenshots/ipad129-2048x2732/` under the largest iPad display size.
+4. Answer the "App Privacy" questions with the answers in `listing.md`.
+5. Age rating: answer the questions; the result should be 4+. Do not choose the Kids category.
 6. Select the uploaded build.
 7. In "App Review Information", explain: "Oware is a traditional board game. Play the computer, two players on one device and the daily challenge with no connection. Online play needs no account: create a game and open the link on a second device."
 8. Submit for review.

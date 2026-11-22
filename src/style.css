@@ -86,7 +86,7 @@ main { display: flex; flex-direction: column; gap: 20px; }
 .rules ol { padding-left: 1.25rem; margin-top: 10px; display: flex; flex-direction: column; gap: 8px; color: var(--muted); max-width: 60ch; }
 
 /* Game */
-#game { gap: 12px; }
+#game { gap: 12px; min-height: calc(var(--avail, 100vh) - 120px); justify-content: center; } /* the board sits in the middle of a tall screen */
 .prompt { background: var(--surface); border-radius: 16px; padding: 12px 16px; font-weight: 600; }
 .bar { display: flex; align-items: center; justify-content: space-between; padding: 0 6px; }
 .who { display: flex; align-items: center; gap: 8px; font-weight: 600; color: var(--muted); }
@@ -178,6 +178,7 @@ main { display: flex; flex-direction: column; gap: 20px; }
 .tv .pit:focus .bowl { box-shadow: 0 0 0 4px var(--ink), 0 0 0 8px var(--accent); }
 .tv .pit:focus { outline: none; }
 .tv #inviteShare, .tv #inviteCopy, .tv #inviteLink, .tv #install { display: none; }
+.tv .foot a { pointer-events: none; text-decoration: none; }
 
 /* Older engines (the "old" class is set in compat.js): no flex gap, grid, or :focus-visible. Spacing uses margins. */
 .old .app, .old main, .old .hero, .old .daily-body, .old .mode, .old .online, .old .invite, .old .result, .old .field, .old .rules ol,

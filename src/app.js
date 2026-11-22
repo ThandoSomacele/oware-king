@@ -406,7 +406,8 @@
     const opening = $('#result').hidden;
     $('#result').hidden = false;
     if (opening) $('#resultMain').focus({ preventScroll: true });
-    $('#result').scrollIntoView({ block: 'nearest', behavior: reduced ? 'auto' : 'smooth' });
+    fit(); // on big screens the board shrinks a little so the panel fits
+    reveal($('#result'));
   }
 
   function endGame() {
@@ -466,11 +467,31 @@
   }
 
   // ---------- screens ----------
+  // The TV starts its screen saver over a still picture unless media plays. A tiny silent video keeps a game on screen.
+  let keep = null;
+  function keepAwake(on) {
+    if (!Config.TV) return; // only the packaged TV app carries the video file
+    if (!keep) {
+      if (!on) return;
+      keep = document.createElement('video');
+      keep.src = 'keepawake.mp4';
+      keep.muted = true;
+      keep.loop = true;
+      keep.setAttribute('muted', '');
+      keep.setAttribute('playsinline', '');
+      keep.style.cssText = 'position:fixed;left:0;top:0;width:16px;height:16px;opacity:0.01;pointer-events:none';
+      document.body.appendChild(keep);
+    }
+    if (on) { const p = keep.play(); if (p && p.catch) p.catch(() => {}); } else keep.pause();
+  }
+
   function show(name) {
     $('#home').hidden = name !== 'home';
     $('#game').hidden = name !== 'game';
     $('#join').hidden = name !== 'join';
     $('#back').hidden = name === 'home';
+    fit();
+    keepAwake(name === 'game');
     window.scrollTo(0, 0);
     if (isTV) setTimeout(() => { const c = homeControl(); if (c) c.focus(); }, 50);
   }
@@ -830,7 +851,8 @@
     if (mode === 'online' && net.code && net.phase !== 'replaced' && state && !state.over) {
       $('#leave').hidden = false;
       $('#leaveNo').focus({ preventScroll: true });
-      $('#leave').scrollIntoView({ block: 'nearest' });
+      fit();
+      reveal($('#leave'));
       return;
     }
     goHome();
@@ -894,14 +916,22 @@
     window.addEventListener('offline', () => { if (net.code && net.ws) dropped(); });
     document.addEventListener('visibilitychange', () => { if (!document.hidden) heartbeat(); }); // phones can cut a hidden page's connection
 
-    try {
-      if (!Config.SERVER && !/^https?:$/.test(location.protocol)) return;
-      const res = await fetch(api('/api/ping'), { cache: 'no-store' });
-      if (!res.ok || !(await res.json()).ok) return;
-    } catch { return; }
+    if (!Config.SERVER && !/^https?:$/.test(location.protocol)) return; // opened as a file: there is no server
+    // An installed app can start with no connection. Keep looking for the server, quietly, until it answers.
+    for (let tries = 0; ; tries++) {
+      try {
+        const res = await fetch(api('/api/ping'), { cache: 'no-store' });
+        if (res.ok && (await res.json()).ok) break;
+      } catch { /* not reachable yet */ }
+      await new Promise((r) => { const t = tries < 6 ? setTimeout(done, 30000) : 0; function done() { clearTimeout(t); window.removeEventListener('online', done); r(); } window.addEventListener('online', done); });
+    }
     $('#onlineCard').hidden = false;
     drawHome();
-    $('#privacyLink').href = api('/privacy');
+    if (isTV) { // a TV has no browser to come back from, so show the address as text
+      const where = document.createElement('span');
+      where.textContent = `Privacy policy: ${api('/privacy').replace(/^https?:\/\//, '')}`;
+      $('#privacyLink').replaceWith(where);
+    } else $('#privacyLink').href = api('/privacy');
     if (isTV) {
       $('#inviteTitle').textContent = 'Scan this code with a phone to join';
       $('#inviteHint').textContent = 'Your friend plays on their phone, from anywhere.';
@@ -916,10 +946,17 @@
   // On tablets, PCs and TVs the whole game is enlarged to use the screen. Phones are left alone.
   const appEl = document.querySelector('.app');
   function fit() {
-    const w = innerWidth, h = innerHeight;
-    let z = w >= 700 ? Math.min((w - 32) / 560, h / 560) : 1;
+    const w = innerWidth, h = innerHeight, game = $('#game');
+    let need = 560;
+    if (!game.hidden) { // the whole game screen, with any open panel, must fit the height
+      let sum = 0, n = 0;
+      for (const c of game.children) if (c.offsetHeight) { sum += c.offsetHeight; n++; }
+      need = Math.max(560, 104 + sum + 12 * Math.max(0, n - 1) + 24);
+    }
+    let z = w >= 700 ? Math.min((w - 32) / 560, h / need) : 1;
     z = Math.round(Math.max(1, Math.min(3.5, z)) * 100) / 100;
     appEl.style.transform = z === 1 ? '' : `scale(${z})`;
+    document.documentElement.style.setProperty('--avail', `${Math.floor(h / z)}px`); // the screen height in the game's own units
     appEl.style.marginBottom = z === 1 ? '' : `${Math.round((z - 1) * appEl.offsetHeight)}px`; // scaling does not move what follows, so make the room by hand
   }
   window.addEventListener('resize', fit);
@@ -936,13 +973,37 @@
       .filter((el) => !el.disabled && el.offsetParent !== null && shape(el).width > 0);
   }
   function homeControl() {
-    if (!$('#game').hidden) return document.querySelector('.pit.can') || [$('#resultMain'), $('#inviteCopy'), $('#back')].find((b) => b.offsetParent);
+    const shown = (b) => b && !b.disabled && b.offsetParent !== null;
+    if (!$('#game').hidden) {
+      return [$('#leaveNo'), document.querySelector('.pit.can'), $('#resultMain'), $('#resultHome'), $('#takeover'), $('#free'), $('#back')].find(shown);
+    }
     if (!$('#join').hidden) return $('#joinNick');
-    return [$('#playOnline'), $('#playDaily')].find((b) => b.offsetParent);
+    return [$('#playDaily'), $('#playOnline'), $('#playAi')].find(shown); // the first control on the home screen
+  }
+  // Scrolls just enough to show a control. (Older engines do not understand scrollIntoView options.)
+  function reveal(el) {
+    const r = shape(el), pad = 24;
+    if (r.top < pad) window.scrollBy(0, r.top - pad);
+    else if (r.bottom > innerHeight - pad) window.scrollBy(0, r.bottom - innerHeight + pad);
+  }
+  // On a TV something must always be selected, or the remote appears dead.
+  if (isTV) {
+    setInterval(() => {
+      if (!$('#intro').hidden) return;
+      const f = document.activeElement;
+      if (f && f !== document.body && !f.disabled && f.offsetParent !== null) return;
+      const c = homeControl();
+      if (c) { c.focus(); reveal(c); }
+    }, 300);
   }
   function step(dir) { // 37 left, 38 up, 39 right, 40 down
     const all = controls(), from = document.activeElement;
-    if (!all.includes(from)) { const first = homeControl(); if (first) first.focus(); return true; }
+    if (!all.includes(from)) {
+      if (!isTV) return false; // on a PC the arrow keys scroll the page until a control is selected with Tab or a click
+      const first = homeControl();
+      if (first) { first.focus(); reveal(first); }
+      return true;
+    }
     const a = shape(from), ax = a.left + a.width / 2, ay = a.top + a.height / 2, across = dir === 38 || dir === 40;
     let best = null, bestScore = Infinity;
     for (const el of all) {
@@ -958,7 +1019,7 @@
     }
     if (!best) return false;
     best.focus();
-    if (best.scrollIntoView) best.scrollIntoView({ block: 'nearest' });
+    reveal(best);
     return true;
   }
   function goBack() {
@@ -973,7 +1034,8 @@
     if (k === 13 && t && t.type === 'radio') { t.click(); return; }
     if (k < 37 || k > 40 || e.altKey || e.ctrlKey || e.metaKey) return;
     if (typing && (k === 37 || k === 39)) return; // left and right move the text cursor
-    if (step(k)) e.preventDefault();
+    const moved = step(k);
+    if (moved || (t && t.type === 'radio')) e.preventDefault(); // arrows never change a level choice by themselves
   });
 
   // ---------- brand and opening screen ----------
@@ -1016,7 +1078,9 @@
     app.inert = true; // nothing behind the title can be tapped, tabbed to or read out
     app.setAttribute('aria-hidden', 'true');
     const onKey = (e) => {
-      if (e.key !== 'Enter' && e.key !== ' ' && e.key !== 'Escape') return;
+      if (isTV && e.keyCode === 461) { window.close(); return; } // Back on the first screen leaves the app
+      const arrow = e.keyCode >= 37 && e.keyCode <= 40;
+      if (e.key !== 'Enter' && e.key !== ' ' && e.key !== 'Escape' && e.keyCode !== 13 && !(isTV && arrow)) return;
       e.preventDefault();
       byKey = true;
       close();
@@ -1031,8 +1095,8 @@
       el.classList.add('out'); // it keeps swallowing taps while it fades
       setTimeout(() => {
         el.hidden = true;
-        const next = [$('#playOnline'), $('#playDaily')].find((b) => b.offsetParent);
-        if ((byKey || isTV) && next) next.focus({ preventScroll: true });
+        const next = homeControl();
+        if ((byKey || isTV) && next) { window.scrollTo(0, 0); next.focus(); }
       }, 450);
     };
     el.addEventListener('click', close);
@@ -1043,18 +1107,16 @@
       if (!open) return;
       // Whole screen pixels per art pixel: square, even pixels on every screen.
       const pw = innerWidth * dpr, ph = innerHeight * dpr;
-      let s = Math.max(1, Math.floor(Math.min(pw / 156, ph / Pixel.AH))), W, H;
-      for (;;) {
-        W = Math.max(156, Math.ceil(pw / s));
-        H = Math.max(Pixel.AH, Math.ceil(ph / s));
-        if (W * H <= (isTV ? 90000 : 260000)) break; // TVs have slow processors
-        s++; // very large screens: bigger pixels keep the drawing fast
-      }
+      const cap = isTV ? 90000 : 260000; // TVs have slow processors
+      const s = Math.max(1, Math.floor(Math.min(pw / 156, ph / Pixel.AH)));
+      const H = Math.max(Pixel.AH, Math.ceil(ph / s));
+      let W = Math.max(156, Math.ceil(pw / s));
+      if (W * H > cap) W = Math.max(Pixel.AW, Math.floor(cap / H)); // keep the whole picture; plain sky at the sides
       cv.width = W;
       cv.height = H;
       cv.style.width = (W * s) / dpr + 'px';
       cv.style.height = (H * s) / dpr + 'px';
-      const art = Pixel.title(W, H);
+      const art = Pixel.title(W, H, isTV ? 'PRESS OK' : 'TAP TO START');
       if (reduced) Pixel.drawTitle(cv, art, Infinity);
       else {
         const t0 = performance.now();

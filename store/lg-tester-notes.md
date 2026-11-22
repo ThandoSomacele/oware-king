@@ -3,7 +3,7 @@
 Oware King is a board game: Oware, the West African seed game for two players. There is no login, payment, video or advertising.
 
 How to test:
-1. Launch the app. The title screen shows. Press OK to start.
+1. Launch the app. The title screen shows "PRESS OK". Press OK to start. Back on this screen closes the app.
 2. Home screen: use the arrow keys to move and OK to select. A gold frame shows the selected item.
 3. "Play the computer": choose Easy, Medium or Hard, then "Start game". Your pits are the bottom row. Move to a pit with a gold ring and press OK. The seeds are sown one by one. Capture pits that hold two or three seeds. First to 25 wins.
 4. "Two players, one device": two people take turns with the same remote.
@@ -15,4 +15,5 @@ How to test:
 Notes:
 - Online play connects to the publisher's game server. The only information sent is a player name, a random device ID and the moves. A game is deleted from the server after one day.
 - All other modes work with no internet connection.
-- Privacy policy: see the link at the bottom of the home screen.
+- During a game a muted 16x16 px looping video keeps the screen saver from starting. On the home screen the screen saver works normally.
+- Privacy policy: the address is shown at the bottom of the home screen.

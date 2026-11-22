@@ -37,6 +37,7 @@ const tvPage = assemble(tvConfig).replace(/<script>([\s\S]*?)<\/script>/g, (_, c
   `<script>${transformSync(code, { target: 'chrome53', charset: 'utf8' }).code}</script>`);
 writeFileSync(at('./dist-tv/index.html'), wrap(tvPage));
 copyFileSync(at('./platforms/webos/appinfo.json'), at('./dist-tv/appinfo.json'));
+copyFileSync(at('./platforms/webos/keepawake.mp4'), at('./dist-tv/keepawake.mp4')); // a tiny silent video that stops the TV screen saver during a game
 for (const [from, to] of [['tv-icon-80.png', 'icon.png'], ['tv-icon-130.png', 'largeIcon.png']]) {
   if (existsSync(at('./assets/' + from))) copyFileSync(at('./assets/' + from), at('./dist-tv/' + to));
 }

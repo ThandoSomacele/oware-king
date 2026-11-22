@@ -1,6 +1,8 @@
 # The web address: owareking.object91.co.za
 
-The game runs on Cloudflare. Cloudflare can only serve the game at an address under object91.co.za if it manages the DNS for object91.co.za. I checked: object91.co.za is not in the Cloudflare account that hosts the game (or the access token cannot see it).
+The game runs on Cloudflare. Cloudflare can only serve the game at an address under object91.co.za if it manages the DNS for object91.co.za.
+
+**Status:** object91.co.za has been added to the Cloudflare account and its 20 DNS records have been copied (all set to "DNS only", so the website and email keep pointing at the same servers). It becomes active when the nameservers are changed at the registrar (Option A, step 5).
 
 Settle this before the Android, Windows and iOS steps. Those apps are tied to the web address.
 
@@ -14,7 +16,7 @@ This is free. Your website and email stay with their current hosts. Only the "ad
 4. Check the list of DNS records that Cloudflare found. Compare it with the records at your current DNS provider. Add any that are missing, especially the email (MX) records.
 5. Cloudflare shows two nameservers. Sign in where you registered object91.co.za and replace the nameservers with those two.
 6. Wait until Cloudflare shows the domain as "Active". This can take up to one day.
-7. Tell me. I then connect `owareking.object91.co.za` to the game and update the TV app, the privacy link and the listing.
+7. Tell me. I then connect `owareking.object91.co.za` to the game, update the TV app, the privacy link and the listing, and remake the store pictures.
 
 Risk: if a DNS record is missing in step 4, the website or email for object91.co.za stops working until the record is added. Do step 4 with care.
 
@@ -26,4 +28,4 @@ Risk: if a DNS record is missing in step 4, the website or email for object91.co
 
 ## Option C: stay on the current address for now
 
-`https://oware-king.oware-king.workers.dev` works for the web and the TV. If you publish to Google Play on this address and change the address later, the Android app must be rebuilt and updated.
+`https://oware-king.oware-king.workers.dev` works for the web and the TV. If you publish to any store on this address and change it later: the Android, Windows and iPhone apps must be made again with PWABuilder and sent for review again, the TV app needs a new version sent to LG, the store pictures must be remade (they show the address), and players on the web, Android, Windows and iPhone lose their saved name and streak.

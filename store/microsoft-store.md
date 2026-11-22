@@ -23,9 +23,9 @@ Before you start: settle the web address (`domain.md`). You need a Microsoft Par
 ## Part 3: Publish
 
 1. In Partner Center, open the Oware King product and start a submission.
-2. Under "Packages", upload the `.msixbundle` file from the folder.
+2. Under "Packages", upload the file ending in `.msixbundle`. If the folder also has a file ending in `.classic.appxbundle`, upload that too (it is for older Windows 10). Do not upload any other file from the folder.
 3. Under "Store listings", enter the text from `listing.md`.
-4. Upload screenshots from `screenshots/windows-1920x1080/` and the icon `../assets/store-icon-512.png`.
+4. Upload the five pictures from `screenshots/windows-1920x1080/` as Desktop screenshots. Skip "Store logos": the Store uses the icon inside the package.
 5. Under "Properties", choose category Games, Card and board. Add the privacy policy link and support email.
 6. Under "Age ratings", answer the questionnaire with the answers in `listing.md`.
 7. Under "Pricing", choose Free.
