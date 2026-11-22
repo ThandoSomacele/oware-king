@@ -4,7 +4,7 @@ const { chromium } = require('playwright');
 const fs = require('node:fs'), path = require('node:path');
 const shots = path.resolve(__dirname, '../store/screenshots/tv-1920x1080');
 const img = (f) => 'data:image/png;base64,' + fs.readFileSync(path.join(shots, f)).toString('base64');
-const APP = 'Oware King  ·  com.object91.owareking  ·  v1.0.2  ·  Object91';
+const APP = 'Oware King  ·  com.object91.owareking  ·  v1.0.3  ·  Object91';
 
 const SCREENS = [
   ['1. Title screen', '1-title.png', [

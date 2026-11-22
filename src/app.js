@@ -1116,7 +1116,7 @@
     const el = $('#intro'), cv = $('#introCv'), app = document.querySelector('.app');
     if (el.hidden) return;
     try { sessionStorage.setItem('oware.intro', '1'); } catch { /* it will show again next time */ }
-    let open = true, timer = 0, byKey = false;
+    let open = true, byKey = false; // the title stays until the player presses OK, a key or taps
     app.inert = true; // nothing behind the title can be tapped, tabbed to or read out
     app.setAttribute('aria-hidden', 'true');
     const onKey = (e) => {
@@ -1130,7 +1130,6 @@
     const close = () => {
       if (!open) return;
       open = false;
-      clearTimeout(timer);
       document.removeEventListener('keydown', onKey);
       app.inert = false;
       app.removeAttribute('aria-hidden');
@@ -1165,7 +1164,6 @@
         const frame = (now) => { if (!open) return; Pixel.drawTitle(cv, art, now - t0); requestAnimationFrame(frame); };
         requestAnimationFrame(frame);
       }
-      timer = setTimeout(close, 9000); // never trap a player on the title screen
     }, 30));
   }
 
