@@ -7,7 +7,7 @@ Everything here was prepared in code. The steps that need your accounts, your TV
 | Platform | What is ready | What you must do | Guide |
 |---|---|---|---|
 | Web (any phone, tablet, PC) | Live. Can be installed from the browser as an app. Works offline for the modes that need no server. | Nothing. | - |
-| LG webOS TV | App package (`.ipk`), remote-control play, QR code to join, icons, screenshots, listing text, tester notes. | Install on your TV, test, then submit in LG Seller Lounge with the UX scenario document. | `lg-tv.md` |
+| LG webOS TV | App package (`.ipk`), remote-control play, QR code to join, icons, screenshots, listing text, tester notes. | Install on your TV, test, then submit with the values in `lg-seller-lounge.md` (worldwide, English). | `lg-tv.md` |
 | Android (Google Play) | Installable web app, icons, screenshots, banner, listing text, privacy policy. | Create the Android package with PWABuilder, send me two fingerprints, upload to Play Console. | `google-play.md` |
 | Windows (Microsoft Store) | Installable web app, icons, screenshots, listing text. | Reserve the name in Partner Center, create the package with PWABuilder, upload. | `microsoft-store.md` |
 | iPhone and iPad (App Store) | Installable web app, icons, screenshots, listing text. | Create the Xcode project with PWABuilder, build and upload from your Mac. | `apple-app-store.md` |
@@ -19,6 +19,7 @@ Everything here was prepared in code. The steps that need your accounts, your TV
 - `screenshots/<device>/`: five screenshots per device size, at the exact sizes the stores ask for.
 - `feature-graphic-1024x500.png`: the wide banner for Google Play.
 - `../assets/store-icon-512.png`: the square store icon. `../assets/icon-*.png`: the app icons.
+- `lg-seller-lounge.md`: every LG Seller Lounge field, ready to copy.
 - `lg-tester-notes.md`: the note for LG's tester. `lg-ux-scenario.pdf`: the screen-by-screen document that LG asks for.
 
 To make the screenshots again after a design change, see the first lines of `../scripts/make-store.js`.

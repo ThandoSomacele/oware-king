@@ -36,24 +36,7 @@ Tell me what does not work, and what the TV model and webOS version are (Setting
 
 ## Part 3: Submit to LG Seller Lounge
 
-Do this after Part 2 is good.
-
-1. Sign in to LG Seller Lounge with the Object91 account.
-2. Start a new app.
-3. Upload `dist-ipk/com.object91.owareking_1.0.8_all.ipk`.
-4. Enter the text from `listing.md`.
-5. Upload `../assets/store-icon-512.png` as the app icon. Tile colour: `#14110E`.
-6. Upload the five pictures from `screenshots/tv-1920x1080/`.
-7. Service country: South Africa. Add more countries later if you want.
-8. Remote controller: both Magic Remote and standard remote.
-9. Billing: No. In-app ads: No. Geo IP block: No. Test account: Not applicable.
-10. Category: Game. Rating: general audiences. Tag keywords: the keywords in `listing.md`.
-11. Contact seller: URL https://www.object91.co.za, email thando@object91.co.za. Reference e-mail: thando@object91.co.za.
-12. Privacy policy: Yes, with the privacy address in `listing.md`. Data collected within the app: see "Data collected" in `listing.md`.
-13. Device requirements: None. DIAL: not used.
-14. Paste `lg-tester-notes.md` into "Note for tester".
-15. Upload `lg-ux-scenario.pdf` as the UX scenario document. LG asked for one for Photo Frame.
-16. Submit.
+Do this after Part 2 is good. Follow `lg-seller-lounge.md`: it has the exact value for every field, the files to upload, and what to do if LG asks for changes.
 
 ## Good to know
 
