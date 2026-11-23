@@ -4,7 +4,7 @@ const { chromium } = require('playwright');
 const fs = require('node:fs'), path = require('node:path');
 const shots = path.resolve(__dirname, '../store/screenshots/tv-1920x1080');
 const img = (f) => 'data:image/png;base64,' + fs.readFileSync(path.join(shots, f)).toString('base64');
-const APP = 'Oware King  ·  com.object91.owareking  ·  v1.0.6  ·  Object91';
+const APP = 'Oware King  ·  com.object91.owareking  ·  v1.0.7  ·  Object91';
 
 const SCREENS = [
   ['1. Title screen', '1-title.png', [
@@ -14,11 +14,11 @@ const SCREENS = [
     ['Magic Remote', 'Click anywhere to start.'],
   ]],
   ['2. Home screen', '5-home.png', [
-    ['Arrow keys', 'Move the gold frame to the next button in that direction. The page scrolls to keep the frame in view.'],
+    ['Arrow keys', 'Move the gold frame to the next button in that direction. The whole home screen fits on one screen.'],
     ['OK', 'Selects the framed button.'],
     ['Play today\'s challenge', 'Opens one position. The player gets one try to find the best pit.'],
     ['Play a friend online', 'In the right-hand column. Moving over the name field does not open the TV keyboard; OK on it does. "Create game link" opens the invite screen.'],
-    ['How to play', 'OK opens the rules. Down scrolls to read them, Up returns to the top.'],
+    ['How to play', 'OK opens the rules in a panel over the screen. Back or OK on Close returns to the home screen.'],
     ['Play the computer', 'Easy, Medium or Hard, then "Start game".'],
     ['Two players, one device', 'Two people take turns with the same remote.'],
     ['Back', 'Closes the app.'],
@@ -60,7 +60,7 @@ const html = `<!doctype html><meta charset="utf-8"><style>
   ul { font-size: 28px; line-height: 1.7 } .big td { font-size: 28px }
 </style>
 ${page('Oware King: UX scenario', `<ul>
-  <li>Oware King is a board game for two players: Oware, the West African seed game.</li>
+  <li>Oware King: a centuries-old African strategy game, brought to your phone and living room. A board game for two players.</li>
   <li>Type: packaged web app. Resolution: 1920 x 1080. No login, no payment, no advertising, no video content.</li>
   <li>Input: standard remote (arrow keys, OK, Back) and Magic Remote (pointer and click). Colour keys and number keys are not used.</li>
   <li>Modes: play the computer, two players with one remote, the daily challenge, and online play against a friend who joins on a phone by scanning a QR code.</li>

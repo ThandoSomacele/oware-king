@@ -26,7 +26,7 @@ ${page}</body></html>
 `;
 
 const page = assemble(read('config.js'));
-const webHead = '<meta name="description" content="Oware King: the West African seed game. Play the computer, a friend online, or the daily challenge."><link rel="manifest" href="/manifest.webmanifest"><link rel="icon" href="/icon-192.png"><link rel="apple-touch-icon" href="/icon-192.png"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><meta name="apple-mobile-web-app-title" content="Oware King">';
+const webHead = '<meta name="description" content="Oware King. A centuries-old African strategy game, brought to your phone and living room. Play a friend online, the computer, or the daily challenge."><link rel="manifest" href="/manifest.webmanifest"><link rel="icon" href="/icon-192.png"><link rel="apple-touch-icon" href="/icon-192.png"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><meta name="apple-mobile-web-app-title" content="Oware King">';
 for (const d of ['./dist/', './dist-artifact/', './dist-tv/']) mkdirSync(at(d), { recursive: true });
 writeFileSync(at('./dist/index.html'), wrap(page, webHead));
 writeFileSync(at('./dist-artifact/index.html'), page);

@@ -1,6 +1,6 @@
 # Note for tester (paste into "Enter a Note for Tester")
 
-Oware King is a board game: Oware, the West African seed game for two players. There is no login, payment, video or advertising.
+Oware King is a board game: Oware, a centuries-old African strategy game for two players, brought to the TV. There is no login, payment, video or advertising.
 
 How to test:
 1. Launch the app. The title screen shows "PRESS OK". Press OK to start. Back on this screen closes the app.

@@ -14,12 +14,12 @@ Use the same text on every store. Keep it in step with the game.
 - Privacy policy: https://owareking.object91.co.za/privacy
 
 ## Short description (80 characters or fewer)
-The West African seed game. Play a friend online, the computer, or daily.
+A centuries-old African strategy game, brought to your phone and living room.
 
 ## Full description
-Oware is the seed game played across West Africa for hundreds of years. Oware King brings it to your phone, tablet, PC and TV.
+A centuries-old African strategy game, brought to your phone and living room.
 
-One tap sows your seeds around the board. Capture pits of two or three, and be the first to 25.
+Oware has been played across West Africa for hundreds of years, with seeds and a carved wooden board. Oware King brings it to your phone, tablet, computer and TV. Sow your seeds, capture your opponent's, and be the first to 25.
 
 Play your way:
 - Play a friend online. Create a game, send the link or show the QR code, and play from anywhere.

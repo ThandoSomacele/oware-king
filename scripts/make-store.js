@@ -30,7 +30,14 @@ const fast = () => {
     fs.mkdirSync(dir, { recursive: true });
     const ctx = await browser.newContext({ viewport: { width: w, height: h }, deviceScaleFactor: dsf });
     const page = await ctx.newPage();
-    const shot = (n) => page.screenshot({ path: path.join(dir, n + '.png') });
+    // Store pictures must never show the test server's address.
+    const scrub = () => page.evaluate((live) => {
+      const host = live.replace(/^https?:\/\//, '');
+      const walk = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+      for (let n = walk.nextNode(); n; n = walk.nextNode()) if (/127\.0\.0\.1:8787/.test(n.nodeValue)) n.nodeValue = n.nodeValue.replace(/https?:\/\/127\.0\.0\.1:8787|127\.0\.0\.1:8787/g, (m) => (m.startsWith('http') ? live : host));
+      for (const i of document.querySelectorAll('input')) if (/127\.0\.0\.1:8787/.test(i.value)) i.value = i.value.replace(/http:\/\/127\.0\.0\.1:8787/, live);
+    }, LIVE);
+    const shot = async (n) => { await scrub(); await page.screenshot({ path: path.join(dir, n + '.png') }); };
     const isTV = url === TV;
 
     // 1. Title screen
@@ -62,7 +69,7 @@ const fast = () => {
     await page.waitForTimeout(100);
     await page.evaluate(() => { const b = document.querySelector('#leaveYes'); if (b && b.offsetParent) b.click(); });
     await page.waitForSelector('#home:not([hidden])');
-    await page.fill('#nick', 'Thando');
+    await page.evaluate(() => { const n = document.querySelector('#nick'); n.readOnly = false; n.value = 'Thando'; n.dispatchEvent(new Event('input')); n.blur(); }); // the TV name box is locked until OK
     await page.click('#playOnline');
     await page.waitForSelector('#invite:not([hidden])');
     const link = await page.inputValue('#inviteLink');
@@ -130,8 +137,8 @@ const fast = () => {
     const k = 2;
     x.drawImage(logo, 44, 150, logo.width * k, logo.height * k);
     x.font = '600 26px Figtree, system-ui, sans-serif'; x.fillStyle = '#fdf0dc';
-    x.fillText('The West African seed game.', 48, 150 + logo.height * k + 56);
-    x.fillText('Play a friend online, anywhere.', 48, 150 + logo.height * k + 92);
+    x.fillText('A centuries-old African strategy game,', 48, 150 + logo.height * k + 56);
+    x.fillText('brought to your phone and living room.', 48, 150 + logo.height * k + 92);
   });
   await page.waitForTimeout(600);
   await page.screenshot({ path: path.resolve(out, '../feature-graphic-1024x500.png') });

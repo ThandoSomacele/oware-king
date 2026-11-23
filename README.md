@@ -1,6 +1,8 @@
 # Oware King
 
-Oware, the West African sowing game, as one small web page that runs on phones, tablets and PCs.
+A centuries-old African strategy game, brought to your phone and living room.
+
+Oware King is Oware, the West African sowing game, as one small web app for phones, tablets, PCs and LG TVs.
 
 **Live game:** https://owareking.object91.co.za (the older address https://oware-king.oware-king.workers.dev also works)
 

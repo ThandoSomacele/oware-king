@@ -532,6 +532,7 @@
     $('#join').hidden = name !== 'join';
     $('#send').hidden = name !== 'send';
     document.querySelector('.app').classList.toggle('wide', isTV && name === 'home'); // TV home screen uses two columns
+    document.documentElement.classList.toggle('tvhome', isTV && name === 'home'); // and fits the screen, with no scrolling
     $('#back').hidden = name === 'home';
     sizeBowls();
     fit();
@@ -1041,7 +1042,8 @@
   function fit() {
     const w = innerWidth, h = innerHeight, game = $('#game');
     let need = 560;
-    if (!game.hidden) { // the whole game screen, with any open panel, must fit the height
+    if (isTV && !$('#home').hidden) need = appEl.offsetHeight + 44; // the TV home screen must fit without scrolling
+    else if (!game.hidden) { // the whole game screen, with any open panel, must fit the height
       let sum = 0, n = 0;
       for (const c of game.children) if (c.offsetHeight) { sum += c.offsetHeight; n++; }
       need = Math.max(560, 104 + sum + 12 * Math.max(0, n - 1) + 24);
@@ -1052,6 +1054,9 @@
     appEl.style.transform = z === 1 ? '' : `scale(${z})`;
     document.documentElement.style.setProperty('--avail', `${Math.floor(h / z)}px`); // the screen height in the game's own units
     appEl.style.marginBottom = z === 1 ? '' : `${Math.round((z - 1) * appEl.offsetHeight)}px`; // scaling does not move what follows, so make the room by hand
+    // The TV home screen sits in the middle of the screen, top to bottom.
+    const spare = isTV && !$('#home').hidden ? Math.floor((h - appEl.offsetHeight * z - 44) / 2) : 0;
+    appEl.style.marginTop = spare > 8 ? spare + 'px' : '';
   }
   window.addEventListener('resize', () => { sizeBowls(); fit(); });
   if (window.ResizeObserver) new ResizeObserver(fit).observe(appEl);
@@ -1062,12 +1067,14 @@
   if (isTV) document.documentElement.className += ' tv';
   const shape = (el) => (el.type === 'radio' ? document.querySelector(`label[for="${el.id}"]`) || el : el).getBoundingClientRect();
   function controls() {
+    if (!$('#rulesPanel').hidden) return [$('#rulesClose')];
     const view = [$('#home'), $('#game'), $('#join'), $('#send')].find((m) => !m.hidden);
     return [...document.querySelectorAll('.top button'), ...(view ? view.querySelectorAll('button, input, summary') : [])]
       .filter((el) => !el.disabled && el.offsetParent !== null && shape(el).width > 0);
   }
   function homeControl() {
     const shown = (b) => b && !b.disabled && b.offsetParent !== null;
+    if (!$('#rulesPanel').hidden) return $('#rulesClose');
     if (!$('#game').hidden) {
       return [$('#leaveNo'), document.querySelector('.pit.can'), $('#resultMain'), $('#resultHome'), $('#takeover'), $('#free'), $('#back')].find(shown);
     }
@@ -1118,6 +1125,7 @@
     return true;
   }
   function goBack() {
+    if (!$('#rulesPanel').hidden) { closeRules(); return; }
     if (!$('#leave').hidden) { $('#leave').hidden = true; return; }
     if ($('#home').hidden) return askHome();
     if (isTV) window.close(); // on the TV, Back on the first screen leaves the app
@@ -1225,8 +1233,6 @@
   if (Config.VERSION) $('#version').textContent = ` · Version ${Config.VERSION}`; // shows which build is installed
   // TV home screen: play options on the left, "Play a friend online" and the rules on the right.
   if (isTV) {
-    const lede = document.querySelector('.hero .lede');
-    if (lede) lede.textContent = lede.textContent.replace('One tap sows', 'One press sows');
     const home = $('#home'), left = document.createElement('div'), right = document.createElement('div');
     left.className = 'col left';
     right.className = 'col right';
@@ -1234,9 +1240,24 @@
     home.appendChild(left);
     home.appendChild(right);
     document.querySelector('.app').classList.add('wide');
+    document.documentElement.classList.add('tvhome');
   }
-  // Opening "How to play" brings the text into view.
+  // On a TV "How to play" opens as a panel over the screen, so the home screen never has to scroll.
   const rules = document.querySelector('.rules');
+  $('#rulesList').innerHTML = rules.querySelector('ol').innerHTML;
+  function closeRules() {
+    $('#rulesPanel').hidden = true;
+    rules.querySelector('summary').focus();
+  }
+  $('#rulesClose').addEventListener('click', closeRules);
+  if (isTV) {
+    rules.querySelector('summary').addEventListener('click', (e) => {
+      e.preventDefault(); // do not open in place
+      $('#rulesPanel').hidden = false;
+      $('#rulesClose').focus();
+    });
+  }
+  // Elsewhere, opening "How to play" brings the text into view.
   rules.addEventListener('toggle', () => {
     if (!rules.open) return;
     setTimeout(() => {

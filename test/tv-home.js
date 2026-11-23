@@ -1,5 +1,5 @@
-// TV home screen: two columns, the name box does not open the keyboard until OK,
-// and "How to play" can be opened and read to the end with the down button.
+// TV home screen: everything on one screen with no scrolling, two columns, the name box does not open the
+// keyboard until OK, and "How to play" opens as a panel that Back closes.
 // Run: node build.mjs && node test/tv-home.js [folder for screenshots]
 const { chromium } = require('playwright');
 const path = require('node:path');
@@ -28,7 +28,6 @@ const path = require('node:path');
       const onlineShown = await page.evaluate(() => !document.querySelector('#onlineCard').hidden);
       if (onlineShown && !(cols.onlineLeft > cols.dailyRight)) errors.push(`${tag}: "Play a friend online" is not beside the other options ${JSON.stringify(cols)}`);
       if (cols.overflow) errors.push(`${tag}: page is wider than the screen`);
-      if (process.argv[2] && w === 1920) await page.screenshot({ path: `${process.argv[2]}/tv-home-${old ? 'old' : 'new'}.png` });
 
       // Walk the whole home screen with the arrow keys. No step may land on an editable text box.
       const seen = new Set();
@@ -51,21 +50,42 @@ const path = require('node:path');
         if (!(await page.evaluate(() => document.querySelector('#nick').readOnly))) errors.push(`${tag}: name box stays open after leaving it`);
       }
 
-      // How to play: open it with OK, then the down button must bring its last line into view.
-      await page.evaluate(() => { window.scrollTo(0, 0); document.querySelector('.rules summary').focus(); });
+      // Everything on one screen: every control fully visible, and the page cannot scroll.
+      await page.evaluate(() => window.scrollTo(0, 0));
+      const fitCheck = await page.evaluate(() => {
+        const out = [];
+        for (const el of document.querySelectorAll('#home button, #home input, #home summary, .top button')) {
+          if (el.offsetParent === null) continue;
+          const target = el.type === 'radio' ? document.querySelector(`label[for="${el.id}"]`) : el;
+          const r = target.getBoundingClientRect();
+          if (r.width && (r.top < 0 || r.bottom > innerHeight || r.left < 0 || r.right > innerWidth)) out.push(`${el.id || el.textContent.trim()} at ${Math.round(r.top)}-${Math.round(r.bottom)}`);
+        }
+        window.scrollTo(0, 500);
+        const scrolled = window.scrollY;
+        window.scrollTo(0, 0);
+        return { off: out, scrolled };
+      });
+      if (fitCheck.off.length) errors.push(`${tag}: not on screen: ${fitCheck.off.join(', ')}`);
+      if (fitCheck.scrolled > 2) errors.push(`${tag}: the home screen scrolls (${fitCheck.scrolled}px)`);
+      if (process.argv[2]) await page.screenshot({ path: `${process.argv[2]}/tv-home-${old ? 'old' : 'new'}-${w}.png` });
+
+      // How to play: OK opens the panel, Back closes it and returns to "How to play".
+      await page.evaluate(() => document.querySelector('.rules summary').focus());
       await page.keyboard.press('Enter');
-      await page.waitForTimeout(300);
-      if (!(await page.evaluate(() => document.querySelector('.rules').open))) errors.push(`${tag}: OK did not open "How to play"`);
-      let visible = false;
-      for (let n = 0; n < 12 && !visible; n++) {
-        visible = await page.evaluate(() => { const li = [...document.querySelectorAll('.rules li')].pop().getBoundingClientRect(); return li.bottom <= innerHeight && li.top >= 0; });
-        if (!visible) { await page.keyboard.press('ArrowDown'); await page.waitForTimeout(80); }
+      await page.waitForTimeout(200);
+      if (await page.locator('#rulesPanel').isHidden()) errors.push(`${tag}: OK did not open the rules panel`);
+      else {
+        const panel = await page.evaluate(() => { const r = document.querySelector('#rulesPanel .panel').getBoundingClientRect(); return { top: r.top, bottom: r.bottom, focus: document.activeElement.id }; });
+        if (panel.top < 0 || panel.bottom > h) errors.push(`${tag}: rules panel does not fit the screen`);
+        if (panel.focus !== 'rulesClose') errors.push(`${tag}: Close is not selected in the rules panel`);
+        if (process.argv[2] && w === 1920 && !old) await page.screenshot({ path: `${process.argv[2]}/tv-rules.png` });
+        await page.keyboard.press('ArrowDown'); // arrows stay inside the panel
+        if ((await page.evaluate(() => document.activeElement.id)) !== 'rulesClose') errors.push(`${tag}: arrows left the rules panel`);
+        await page.evaluate(() => { const e = new Event('keydown', { bubbles: true }); Object.defineProperty(e, 'keyCode', { value: 461 }); document.dispatchEvent(e); });
+        await page.waitForTimeout(100);
+        if (!(await page.locator('#rulesPanel').isHidden())) errors.push(`${tag}: Back did not close the rules panel`);
+        if ((await page.evaluate(() => document.activeElement.tagName)) !== 'SUMMARY') errors.push(`${tag}: selection did not return to "How to play"`);
       }
-      if (!visible) errors.push(`${tag}: the last rule cannot be reached with the down button`);
-      if (process.argv[2] && w === 1920 && !old) await page.screenshot({ path: `${process.argv[2]}/tv-rules.png` });
-      // Up brings the page back to the top.
-      for (let n = 0; n < 12; n++) await page.keyboard.press('ArrowUp');
-      if ((await page.evaluate(() => window.scrollY)) > 40) errors.push(`${tag}: up button does not return to the top`);
       console.log(`${tag}: online card ${onlineShown ? 'shown' : 'hidden (no server)'}, controls visited: ${[...seen].join(', ')}`);
       await page.context().close();
     }

@@ -40,7 +40,7 @@ const png = (bytes) => new Response(bytes, { headers: { 'content-type': 'image/p
 const MANIFEST = {
   name: 'Oware King',
   short_name: 'Oware King',
-  description: 'The West African seed game. Play the computer, a friend online, or the daily challenge.',
+  description: 'A centuries-old African strategy game, brought to your phone and living room. Play a friend online, the computer, or the daily challenge.',
   id: '/',
   start_url: '/',
   scope: '/',
