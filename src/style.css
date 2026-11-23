@@ -254,6 +254,26 @@ main { display: flex; flex-direction: column; gap: 20px; }
 .tv #home .rules ol { display: none; } /* shown in the panel instead */
 .tv #home .foot { font-size: 0.75rem; }
 
+/* TV game screen: fits the screen. The board column, and while waiting for a friend, the invite card beside it. */
+.tv, .tv body { overflow: hidden; }
+.tv .app.wide-game { max-width: 1000px; }
+.tv #game { display: block; min-height: 0; text-align: center; font-size: 0; }
+.tv #game .gcol { display: inline-block; vertical-align: middle; text-align: left; font-size: 1rem; }
+.tv #game .gcol.left { width: 528px; }
+.tv #game .gcol.right { width: 400px; margin-left: 40px; }
+.tv #game .gcol.left > * + * { margin-top: 12px; }
+.tv #game .gcol.left > [hidden] + *, .tv #game .gcol.left > .extra:empty { margin-top: 12px; }
+.tv #game .prompt { padding: 8px 14px; font-size: 0.9375rem; }
+.tv #game .status { min-height: 0; }
+.tv #game .reacts button { width: 40px; height: 40px; font-size: 1.25rem; }
+.tv #invite { padding: 16px; }
+.tv #invite > * + * { margin-top: 10px; }
+.tv #invite #inviteQr { width: 220px; height: 220px; }
+.tv #invite .small { font-size: 0.875rem; }
+/* Result and "Leave this game?": panels over the screen, sized like the game (--z from fit()). */
+.tv #result, .tv #leave { position: fixed; left: 50%; top: 50%; width: 480px; margin: 0; z-index: 30; transform: translate(-50%, -50%) scale(var(--z, 1)); box-shadow: 0 0 0 200vmax rgba(10, 8, 6, 0.8), inset 0 0 0 2px var(--accent); text-align: left; }
+.tv #result > * + *, .tv #leave > * + * { margin-top: 10px; }
+
 /* How to play, as a panel over the screen (TV). Sized to the screen, outside the scaled game. */
 #rulesPanel { position: fixed; top: 0; right: 0; bottom: 0; left: 0; z-index: 40; background: rgba(10, 8, 6, 0.88); display: flex; align-items: center; justify-content: center; }
 #rulesPanel .panel { background: var(--surface); border-radius: 2vw; padding: 3vw 3.5vw; width: 60vw; box-shadow: inset 0 0 0 3px var(--accent); }

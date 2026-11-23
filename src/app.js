@@ -533,6 +533,8 @@
     $('#send').hidden = name !== 'send';
     document.querySelector('.app').classList.toggle('wide', isTV && name === 'home'); // TV home screen uses two columns
     document.documentElement.classList.toggle('tvhome', isTV && name === 'home'); // and fits the screen, with no scrolling
+    if (isTV && name !== 'home') document.querySelector('.app').classList.remove('wide');
+    if (typeof tvLayout === 'function') tvLayout();
     $('#back').hidden = name === 'home';
     sizeBowls();
     fit();
@@ -555,6 +557,7 @@
     $('#invite').hidden = true;
     $('#leave').hidden = true;
     notify('');
+    tvLayout();
     $('#reacts').hidden = mode !== 'online' || !rival();
     net.busy = false;
     net.ticket++;
@@ -778,6 +781,7 @@
     $('#nameTop').textContent = r ? r.name : 'Waiting for a friend';
     if (!r && $('#invite').hidden) $('#inviteCopy').textContent = 'Copy link'; // a new invite has not been copied yet
     $('#invite').hidden = !!r;
+    tvLayout();
     $('#reacts').hidden = !r;
     if (!r && $('#inviteLink').value !== linkFor(net.code)) {
       $('#inviteLink').value = linkFor(net.code);
@@ -1042,23 +1046,38 @@
   function fit() {
     const w = innerWidth, h = innerHeight, game = $('#game');
     let need = 560;
-    if (isTV && !$('#home').hidden) need = appEl.offsetHeight + 44; // the TV home screen must fit without scrolling
+    if (isTV && (!$('#home').hidden || !game.hidden)) {
+      need = appEl.offsetHeight + 44; // every TV screen must fit without scrolling
+      // Game screens keep room for the daily prompt and the reactions, so the board is the same size on every one.
+      if (!game.hidden && !appEl.classList.contains('wide-game')) need = Math.max(need, 572);
+    }
     else if (!game.hidden) { // the whole game screen, with any open panel, must fit the height
       let sum = 0, n = 0;
       for (const c of game.children) if (c.offsetHeight) { sum += c.offsetHeight; n++; }
       need = Math.max(560, 104 + sum + 12 * Math.max(0, n - 1) + 24);
     }
-    const base = appEl.classList.contains('wide') ? 1150 : 560; // the game's own width (the TV home screen keeps a 5% margin, inside the TV's safe area)
+    // The game's own width. TV screens keep a 5% margin, inside the TV's safe area.
+    const base = appEl.classList.contains('wide') ? 1150 : appEl.classList.contains('wide-game') ? 1060 : isTV ? 620 : 560;
     let z = w >= 700 ? Math.min((w - 32) / base, h / need) : 1;
     z = Math.round(Math.max(1, Math.min(3.5, z)) * 100) / 100;
     appEl.style.transform = z === 1 ? '' : `scale(${z})`;
     document.documentElement.style.setProperty('--avail', `${Math.floor(h / z)}px`); // the screen height in the game's own units
     appEl.style.marginBottom = z === 1 ? '' : `${Math.round((z - 1) * appEl.offsetHeight)}px`; // scaling does not move what follows, so make the room by hand
     // The TV home screen sits in the middle of the screen, top to bottom.
-    const spare = isTV && !$('#home').hidden ? Math.floor((h - appEl.offsetHeight * z - 44) / 2) : 0;
+    const spare = isTV && (!$('#home').hidden || !game.hidden) ? Math.floor((h - appEl.offsetHeight * z - 44) / 2) : 0;
+    document.documentElement.style.setProperty('--z', String(z)); // panels over the screen use the same size
     appEl.style.marginTop = spare > 8 ? spare + 'px' : '';
   }
   window.addEventListener('resize', () => { sizeBowls(); fit(); });
+  // TV: while waiting for a friend, the invite card sits to the right of the board.
+  function tvLayout() {
+    if (!isTV) return;
+    const waiting = !$('#game').hidden && !$('#invite').hidden;
+    appEl.classList.toggle('wide-game', waiting);
+    const right = $('#gcolRight');
+    if (right) right.hidden = !waiting;
+    fit();
+  }
   if (window.ResizeObserver) new ResizeObserver(fit).observe(appEl);
   else setInterval(fit, 1000); // old TV engines
 
@@ -1068,6 +1087,10 @@
   const shape = (el) => (el.type === 'radio' ? document.querySelector(`label[for="${el.id}"]`) || el : el).getBoundingClientRect();
   function controls() {
     if (!$('#rulesPanel').hidden) return [$('#rulesClose')];
+    for (const id of ['#leave', '#result']) { // TV panels over the board
+      const p = $(id);
+      if (isTV && !p.hidden) return [...p.querySelectorAll('button')].filter((b) => !b.hidden && !b.disabled && b.offsetParent !== null);
+    }
     const view = [$('#home'), $('#game'), $('#join'), $('#send')].find((m) => !m.hidden);
     return [...document.querySelectorAll('.top button'), ...(view ? view.querySelectorAll('button, input, summary') : [])]
       .filter((el) => !el.disabled && el.offsetParent !== null && shape(el).width > 0);
@@ -1241,6 +1264,18 @@
     home.appendChild(right);
     document.querySelector('.app').classList.add('wide');
     document.documentElement.classList.add('tvhome');
+    // Game screen: board on the left, the invite card on the right (shown only while waiting for a friend).
+    const game = $('#game'), gl = document.createElement('div'), gr = document.createElement('div');
+    gl.className = 'gcol left';
+    gr.className = 'gcol right';
+    gr.id = 'gcolRight';
+    gr.hidden = true;
+    for (const c of [...game.children]) (c.id === 'invite' ? gr : gl).appendChild(c);
+    game.appendChild(gl);
+    game.appendChild(gr);
+    // The result and "Leave this game?" open as panels over the screen, outside the scaled game.
+    document.body.appendChild($('#result'));
+    document.body.appendChild($('#leave'));
   }
   // On a TV "How to play" opens as a panel over the screen, so the home screen never has to scroll.
   const rules = document.querySelector('.rules');

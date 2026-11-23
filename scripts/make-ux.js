@@ -4,7 +4,7 @@ const { chromium } = require('playwright');
 const fs = require('node:fs'), path = require('node:path');
 const shots = path.resolve(__dirname, '../store/screenshots/tv-1920x1080');
 const img = (f) => 'data:image/png;base64,' + fs.readFileSync(path.join(shots, f)).toString('base64');
-const APP = 'Oware King  ·  com.object91.owareking  ·  v1.0.7  ·  Object91';
+const APP = 'Oware King  ·  com.object91.owareking  ·  v1.0.8  ·  Object91';
 
 const SCREENS = [
   ['1. Title screen', '1-title.png', [
@@ -35,6 +35,7 @@ const SCREENS = [
   ['4. Scan to join (online play)', '3-scan-to-join.png', [
     ['QR code', 'The TV owner scans it with their phone and sends the game link to a friend on WhatsApp. A friend in the room can also scan it.'],
     ['Link', 'The game link is also shown as text under the QR code.'],
+    ['Layout', 'The QR code and the game link sit to the right of the board. When the friend joins, the card closes and the board moves to the centre.'],
     ['Waiting for a friend', 'Changes to the friend\'s name when they join. Play then starts.'],
     ['Home', 'Leaves the game after a confirmation.'],
     ['Network', 'This is the only screen that needs an internet connection.'],
@@ -42,7 +43,7 @@ const SCREENS = [
   ['5. Online game in progress', '4-play-a-friend-online.png', [
     ['Names', 'The friend is shown at the top, the TV player at the bottom.'],
     ['Reactions', 'Five preset pictures can be sent. There is no text chat.'],
-    ['Result', 'When a player reaches 25 a panel shows the result, with "Rematch" and "Home".'],
+    ['Result', 'When a player reaches 25 a panel opens over the board with "Rematch" (selected) and "Home". Back returns to the home screen.'],
     ['Lost connection', 'The status line says "Connection lost. Reconnecting" and the game continues when the connection returns.'],
   ]],
 ];
