@@ -73,6 +73,6 @@ First release.
 | LG Seller Lounge | `screenshots/tv-1920x1080/` | `../assets/store-icon-512.png`, `lg-ux-scenario.pdf` |
 | Google Play, phone | `screenshots/phone-1080x1920/` | `feature-graphic-1024x500.png`, `../assets/store-icon-512.png` |
 | Google Play, tablets | `screenshots/tablet7-1200x1920/`, `screenshots/tablet10-1600x2560/` | |
-| Microsoft Store | `screenshots/windows-1920x1080/` | none (the Store uses the icon inside the package) |
+| Microsoft Store | `screenshots/windows-1920x1080/` | none in the listing (the package carries `../assets/win/` tiles); all values in `microsoft-store.md` |
 | App Store, iPhone 6.7 inch | `screenshots/iphone67-1290x2796/` | |
 | App Store, iPad 12.9 inch | `screenshots/ipad129-2048x2732/` | |

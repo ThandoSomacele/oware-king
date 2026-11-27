@@ -9,6 +9,25 @@ import assetLinks from './assetlinks.json'; // links the Android app to this sit
 import icon192 from '../assets/icon-192.png';
 import icon512 from '../assets/icon-512.png';
 import iconMaskable from '../assets/icon-maskable-512.png';
+import icon256 from '../assets/icon-256.png';
+import win44 from '../assets/win/Square44x44Logo.png';
+import win150 from '../assets/win/Square150x150Logo.png';
+import win310 from '../assets/win/Square310x310Logo.png';
+import shotWideHome from '../assets/shot-wide-home.jpg';
+import shotWidePlay from '../assets/shot-wide-play.jpg';
+import shotNarrowPlay from '../assets/shot-narrow-play.jpg';
+import shotNarrowOnline from '../assets/shot-narrow-online.jpg';
+// Extra pictures for installing the game as an app (Windows tiles, Store install dialog).
+const FILES = {
+  '/icon-256.png': ['image/png', icon256],
+  '/icon-44.png': ['image/png', win44],
+  '/icon-150.png': ['image/png', win150],
+  '/icon-310.png': ['image/png', win310],
+  '/shots/wide-home.jpg': ['image/jpeg', shotWideHome],
+  '/shots/wide-play.jpg': ['image/jpeg', shotWidePlay],
+  '/shots/narrow-play.jpg': ['image/jpeg', shotNarrowPlay],
+  '/shots/narrow-online.jpg': ['image/jpeg', shotNarrowOnline],
+};
 
 const ALPHABET = 'abcdefghjkmnpqrstuvwxyz23456789'; // no look-alike letters or digits
 const REACTIONS = 5;
@@ -45,7 +64,10 @@ const MANIFEST = {
   start_url: '/',
   scope: '/',
   display: 'standalone',
+  display_override: ['standalone', 'minimal-ui'],
+  launch_handler: { client_mode: 'focus-existing' }, // opening the app again returns to the open window
   orientation: 'any',
+  dir: 'ltr',
   background_color: '#14110e',
   theme_color: '#14110e',
   lang: 'en',
@@ -54,6 +76,16 @@ const MANIFEST = {
     { src: '/icon-192.png', sizes: '192x192', type: 'image/png', purpose: 'any' },
     { src: '/icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'any' },
     { src: '/icon-maskable-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
+    { src: '/icon-256.png', sizes: '256x256', type: 'image/png', purpose: 'any' },
+    { src: '/icon-44.png', sizes: '44x44', type: 'image/png', purpose: 'any' },
+    { src: '/icon-150.png', sizes: '150x150', type: 'image/png', purpose: 'any' },
+    { src: '/icon-310.png', sizes: '310x310', type: 'image/png', purpose: 'any' },
+  ],
+  screenshots: [
+    { src: '/shots/wide-home.jpg', sizes: '1920x1080', type: 'image/jpeg', form_factor: 'wide', label: 'Home screen with the daily challenge and game modes' },
+    { src: '/shots/wide-play.jpg', sizes: '1920x1080', type: 'image/jpeg', form_factor: 'wide', label: 'A game against the computer on the wooden board' },
+    { src: '/shots/narrow-play.jpg', sizes: '1080x1920', type: 'image/jpeg', form_factor: 'narrow', label: 'Playing on a phone' },
+    { src: '/shots/narrow-online.jpg', sizes: '1080x1920', type: 'image/jpeg', form_factor: 'narrow', label: 'Playing a friend online' },
   ],
 };
 // A short fingerprint of the page, so an installed copy knows when a new version is out.
@@ -115,6 +147,10 @@ export default {
         case '/icon-maskable-512.png': return png(iconMaskable);
         case '/.well-known/assetlinks.json': return new Response(JSON.stringify(assetLinks), { headers: { 'content-type': 'application/json', 'cache-control': 'no-cache' } });
         default:
+          if (FILES[url.pathname]) {
+            const [type, bytes] = FILES[url.pathname];
+            return new Response(bytes, { headers: { 'content-type': type, 'cache-control': 'public, max-age=86400' } });
+          }
       }
     }
     return json({ error: 'Not found' }, 404);

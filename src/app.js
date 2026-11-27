@@ -1035,7 +1035,8 @@
       $('#onlineNote').textContent = 'Create a game, scan the code with your phone, and send the link to a friend.';
     }
     // Installed like an app: works offline for the modes that need no server.
-    if (!Config.SERVER && 'serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('/sw.js').catch(() => {});
+    const secure = location.protocol === 'https:' || /^(localhost|127\.0\.0\.1)$/.test(location.hostname); // a local test server counts as secure
+    if (!Config.SERVER && 'serviceWorker' in navigator && secure) navigator.serviceWorker.register('/sw.js').catch(() => {});
     if (invite) openInvite(invite);
     else if (sendCode) openSend(sendCode);
   }

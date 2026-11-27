@@ -9,7 +9,7 @@ Everything here was prepared in code. The steps that need your accounts, your TV
 | Web (any phone, tablet, PC) | Live. Can be installed from the browser as an app. Works offline for the modes that need no server. | Nothing. | - |
 | LG webOS TV | App package (`.ipk`), remote-control play, QR code to join, icons, screenshots, listing text, tester notes. | Install on your TV, test, then submit with the values in `lg-seller-lounge.md` (worldwide, English). | `lg-tv.md` |
 | Android (Google Play) | Installable web app, icons, screenshots, banner, listing text, privacy policy. | Create the Android package with PWABuilder, send me two fingerprints, upload to Play Console. | `google-play.md` |
-| Windows (Microsoft Store) | Installable web app, icons, screenshots, listing text. | Reserve the name in Partner Center, create the package with PWABuilder, upload. | `microsoft-store.md` |
+| Windows (Microsoft Store) | Install check passed, Windows tiles, screenshots, every form value. | Create the developer account, reserve the name, make the package with PWABuilder, submit. | `microsoft-store.md` |
 | iPhone and iPad (App Store) | Installable web app, icons, screenshots, listing text. | Create the Xcode project with PWABuilder, build and upload from your Mac. | `apple-app-store.md` |
 | Web address | Done. The game runs at `https://owareking.object91.co.za`. | Nothing. Use this address in every store step. | `domain.md` |
 

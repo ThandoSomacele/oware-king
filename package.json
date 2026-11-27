@@ -12,7 +12,8 @@
     "icons": "node build.mjs && node scripts/make-icons.js && node build.mjs",
     "tv": "node build.mjs && rm -rf dist-ipk && ares-package dist-tv -o dist-ipk",
     "test:tv": "OWARE_SERVER=http://127.0.0.1:8787 node build.mjs && node test/tv.js && node test/tv-home.js && node test/tv-game.js; node build.mjs && node test/tv-size.js",
-    "store": "OWARE_SERVER=http://127.0.0.1:8787 node build.mjs && node scripts/make-store.js; node build.mjs"
+    "store": "OWARE_SERVER=http://127.0.0.1:8787 node build.mjs && node scripts/make-store.js; node build.mjs",
+    "test:install": "node test/install.js"
   },
   "devDependencies": {
     "@webos-tools/cli": "^3.2.6",

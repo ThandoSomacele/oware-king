@@ -25,6 +25,7 @@ Run `npm install` once. Then:
 - `npm run dev`: builds, then runs the page and game server on your computer at http://127.0.0.1:8787
 - `npm test`: checks the rules and plays two full games in a browser.
 - `npm run test:online`: with `npm run dev` running in another window, a hostile-player test and two browsers playing two online games.
+- `npm run test:install`: with `npm run dev` running, checks the game can be installed as an app, its pictures, the offline start and Windows window sizes.
 - `npm run test:tv`: with `npm run dev` running, the TV app hosts a game with remote keys and a phone joins from the QR link.
 - `npm run tv`: makes the LG TV package in `dist-ipk/`. `sh platforms/webos/deploy.sh` also installs it on your TV.
 - `npm run icons`: redraws the icon files in `assets/` from the pixel icon.
